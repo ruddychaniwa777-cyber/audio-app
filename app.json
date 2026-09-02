@@ -3,26 +3,8 @@
     "name": "audio-app",
     "slug": "audio-app",
     "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
-    "ios": {
-      "supportsTablet": true
-    },
     "android": {
-      "package": "com.ruddychaniwa777.audioapp",
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      }
-    },
-    "plugins": [
-      "expo-video"
-    ]
+      "package": "com.ruddychaniwa777.audioapp"
+    }
   }
 }
