@@ -1,57 +1,28 @@
 {
   "expo": {
-    "name": "Pocket Rivals",
+    "name": "audio-app",
     "slug": "audio-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
+    "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0d0c12"
+      "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.pocketrivals.app"
+      "supportsTablet": true
     },
     "android": {
       "package": "com.ruddychaniwa777.audioapp",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#0d0c12"
-      },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
-    },
-    "web": {
-      "favicon": "./assets/icon.png"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      }
     },
     "plugins": [
-      "expo-video",
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "usesCleartextTraffic": true,
-            "kotlinVersion": "2.0.21",
-            "compileSdkVersion": 36,
-            "targetSdkVersion": 36,
-            "minSdkVersion": 24
-          },
-          "ios": {
-            "useFrameworks": "static"
-          }
-        }
-      ],
-      "expo-audio",
-      "expo-asset"
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "e90f1831-c00e-422c-8796-d8a8202c9a7c"
-      }
-    }
+      "expo-video"
+    ]
   }
 }
