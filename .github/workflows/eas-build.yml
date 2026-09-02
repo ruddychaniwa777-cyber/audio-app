@@ -5,7 +5,8 @@ on:
     branches: [main]
 
 jobs:
-  Build Android App:
+  build-android:
+    name: Build Android App
     runs-on: ubuntu-latest
     steps:
       - name: Setup repo
