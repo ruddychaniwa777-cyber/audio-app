@@ -3,36 +3,27 @@
     "name": "Pocket Rivals",
     "slug": "pocket-rivals",
     "version": "1.0.0",
-    "orientation": "portrait",
-    "userInterfaceStyle": "dark",
-
     "icon": "./assets/icon.png",
-
     "android": {
       "package": "com.ruddychaniwa777.audioapp",
-      "versionCode": 1,
-      "backgroundColor": "#000000",
-
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#000000"
+        "backgroundColor": "#FFFFFF"
       }
     },
-
     "extra": {
       "eas": {
         "projectId": "e90f1831-c00e-422c-8796-d6215356952d"
       }
     },
-
     "plugins": [
       [
         "expo-build-properties",
         {
           "android": {
-            "kotlinVersion": "2.2.20",
-            "compileSdkVersion": 37,
-            "targetSdkVersion": 37
+            "kotlinVersion": "1.9.24",
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34
           }
         }
       ],
