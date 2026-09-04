@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   ActivityIndicator,
   Alert,
@@ -1145,6 +1146,9 @@ function AIScreen({
 function RegisterScreen({
   onBack,
   onSubmit,
+  onLogin,
+  mode,
+  setMode,
   username,
   setUsername,
   email,
@@ -1155,6 +1159,9 @@ function RegisterScreen({
 }: {
   onBack: () => void;
   onSubmit: () => void;
+  onLogin: () => void;
+  mode: "register" | "login";
+  setMode: (v: "register" | "login") => void;
   username: string;
   setUsername: (v: string) => void;
   email: string;
@@ -1163,26 +1170,35 @@ function RegisterScreen({
   setPassword: (v: string) => void;
   loading: boolean;
 }) {
+  const isLogin = mode === "login";
   return (
     <SafeAreaView style={styles.safe}>
-      <Header title="Register / Login" onBack={onBack} coins={0} />
+      <Header title={isLogin ? "Log in" : "Create account"} onBack={onBack} coins={0} />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <ScrollView contentContainerStyle={styles.form}>
-          <Text style={styles.pageTitle}>Create your account</Text>
-          <Text style={styles.muted}>No default user. Every tester gets their own account.</Text>
+          <Text style={styles.pageTitle}>{isLogin ? "Welcome back" : "Create your account"}</Text>
+          <Text style={styles.muted}>
+            {isLogin
+              ? "Your account is saved on this device, so you won't need to log in every time."
+              : "Create an account once. Pocket Rivals will remember your signed-in session."}
+          </Text>
 
-          <Text style={styles.fieldLabel}>Username</Text>
-          <TextInput
-            value={username}
-            onChangeText={setUsername}
-            placeholder="Choose a username"
-            placeholderTextColor="#666"
-            style={styles.formInput}
-            autoCapitalize="none"
-          />
+          {!isLogin && (
+            <>
+              <Text style={styles.fieldLabel}>Username</Text>
+              <TextInput
+                value={username}
+                onChangeText={setUsername}
+                placeholder="Choose a username"
+                placeholderTextColor="#666"
+                style={styles.formInput}
+                autoCapitalize="none"
+              />
+            </>
+          )}
 
           <Text style={styles.fieldLabel}>Email</Text>
           <TextInput
@@ -1193,6 +1209,7 @@ function RegisterScreen({
             style={styles.formInput}
             keyboardType="email-address"
             autoCapitalize="none"
+            autoComplete="email"
           />
 
           <Text style={styles.fieldLabel}>Password</Text>
@@ -1203,10 +1220,29 @@ function RegisterScreen({
             placeholderTextColor="#666"
             style={styles.formInput}
             secureTextEntry
+            autoComplete={isLogin ? "current-password" : "new-password"}
           />
 
-          <Pressable style={styles.primaryButton} onPress={onSubmit} disabled={loading}>
-            {loading ? <ActivityIndicator /> : <Text style={styles.primaryButtonText}>Create account</Text>}
+          <Pressable
+            style={styles.primaryButton}
+            onPress={isLogin ? onLogin : onSubmit}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator />
+            ) : (
+              <Text style={styles.primaryButtonText}>{isLogin ? "Log in" : "Create account"}</Text>
+            )}
+          </Pressable>
+
+          <Pressable
+            style={styles.secondaryButton}
+            onPress={() => setMode(isLogin ? "register" : "login")}
+            disabled={loading}
+          >
+            <Text style={styles.secondaryButtonText}>
+              {isLogin ? "Need an account? Create one" : "Already have an account? Log in"}
+            </Text>
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -1490,6 +1526,7 @@ export default function App() {
   const [autoUnlock, setAutoUnlock] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
+  const [authMode, setAuthMode] = useState<"register" | "login">("register");
   const [regUsername, setRegUsername] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
@@ -1528,12 +1565,40 @@ export default function App() {
   useEffect(() => {
     loadShows();
     loadCoinPackages();
+    restoreSession();
   }, []);
+
+  async function restoreSession() {
+    try {
+      const raw = await AsyncStorage.getItem("pocket_rivals_session");
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (!saved?.token || !saved?.user) return;
+      setToken(String(saved.token));
+      setUser(saved.user);
+      setCoins(Number(saved.coins ?? 0));
+    } catch {
+      await AsyncStorage.removeItem("pocket_rivals_session").catch(() => undefined);
+    }
+  }
+
+  async function persistSession(nextUser: User, nextToken: string | null, nextCoins: number) {
+    if (!nextToken) return;
+    await AsyncStorage.setItem(
+      "pocket_rivals_session",
+      JSON.stringify({ user: nextUser, token: nextToken, coins: nextCoins })
+    );
+  }
 
 
   useEffect(() => {
     likedRef.current = liked;
   }, [liked]);
+
+  useEffect(() => {
+    if (!user || !token) return;
+    persistSession(user, token, coins).catch(() => undefined);
+  }, [user, token, coins]);
 
   async function loadShows() {
     try {
@@ -1569,7 +1634,13 @@ export default function App() {
     if (user && token) return true;
     Alert.alert("Login required", `Please register or log in before you ${action}.`, [
       { text: "Later", style: "cancel" },
-      { text: "Register", onPress: () => navigate("register") },
+      {
+        text: "Log in / Register",
+        onPress: () => {
+          setAuthMode("login");
+          navigate("register");
+        },
+      },
     ]);
     return false;
   }
@@ -1683,27 +1754,7 @@ export default function App() {
         body: JSON.stringify({ username, email, password }),
       });
 
-      const login = await api<any>("/api/login", {
-        method: "POST",
-        body: JSON.stringify({ email, password }),
-      });
-
-      const newToken = login.token ?? login.accessToken ?? null;
-      const account = login.user ?? login.account ?? {
-        username,
-        email,
-      };
-
-      setToken(newToken);
-      setUser({
-        id: account.id ?? account._id,
-        username: account.username ?? username,
-        email: account.email ?? email,
-      });
-      setCoins(Number(login.coins ?? account.coins ?? 0));
-      setRegPassword("");
-      navigate("profile");
-      Alert.alert("Welcome", "Your Pocket Rivals account is ready.");
+      await loginAccount(email, password, true);
     } catch (e: any) {
       Alert.alert("Registration failed", e.message);
     } finally {
@@ -1711,7 +1762,51 @@ export default function App() {
     }
   }
 
-  function logout() {
+  async function loginAccount(emailOverride?: string, passwordOverride?: string, fromRegister = false) {
+    const email = (emailOverride ?? regEmail).trim().toLowerCase();
+    const password = passwordOverride ?? regPassword;
+
+    if (!email.includes("@")) return Alert.alert("Invalid email", "Enter a valid email.");
+    if (password.length < 6) return Alert.alert("Invalid password", "Use at least 6 characters.");
+
+    if (!fromRegister) setAuthLoading(true);
+    try {
+      const login = await api<any>("/api/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
+
+      const newToken = login.token ?? login.accessToken ?? null;
+      if (!newToken) throw new Error("The server did not return a login token.");
+
+      const account = login.user ?? login.account ?? {
+        username: regUsername || email.split("@")[0],
+        email,
+      };
+      const nextUser: User = {
+        id: account.id ?? account._id,
+        username: account.username ?? (regUsername || email.split("@")[0]),
+        email: account.email ?? email,
+      };
+      const nextCoins = Number(login.coins ?? account.coins ?? 0);
+
+      setToken(newToken);
+      setUser(nextUser);
+      setCoins(nextCoins);
+      await persistSession(nextUser, newToken, nextCoins);
+      setRegPassword("");
+      navigate("profile");
+      if (!fromRegister) Alert.alert("Welcome back", `You're signed in as ${nextUser.username}.`);
+      else Alert.alert("Welcome", "Your Pocket Rivals account is ready.");
+    } catch (e: any) {
+      Alert.alert("Login failed", e.message || "Unable to sign in.");
+    } finally {
+      if (!fromRegister) setAuthLoading(false);
+    }
+  }
+
+  async function logout() {
+    await AsyncStorage.removeItem("pocket_rivals_session").catch(() => undefined);
     setUser(null);
     setToken(null);
     setCoins(0);
@@ -2063,6 +2158,9 @@ export default function App() {
         <RegisterScreen
           onBack={back}
           onSubmit={register}
+          onLogin={() => loginAccount()}
+          mode={authMode}
+          setMode={setAuthMode}
           username={regUsername}
           setUsername={setRegUsername}
           email={regEmail}
@@ -2221,15 +2319,19 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   iconButton: {
-    width: 36,
-    height: 36,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#171717",
   },
   iconText: {
     color: "#fff",
-    fontSize: 36,
-    lineHeight: 36,
+    fontSize: 42,
+    lineHeight: 44,
+    fontWeight: "800",
+    marginTop: -3,
   },
   bottomNav: {
     position: "absolute",
