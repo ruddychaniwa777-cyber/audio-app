@@ -254,7 +254,10 @@ function normalizeShow(x: any): Story {
     lockedFrom: Number(x.lockedFrom ?? 2),
     duration: Number(x.duration ?? 20),
     audioUrl: x.audioUrl,
-    videoUrl: x.videoUrl,
+    videoUrl:
+    x.videoUrl ??
+    x.seasons?.[0]?.episodes?.[0]?.videoUrl ??
+    VIDEO_URL,
     likedBy: Array.isArray(x.likedBy) ? x.likedBy.map(String) : [],
     raw: x,
   };
@@ -833,7 +836,16 @@ function VideoScreen({
   onCoins: () => void;
   coins: number;
 }) {
-  const source = story.videoUrl || VIDEO_URL;
+  const episodeIndex = Math.max(0, episode - 1);
+
+  const episodeVideoUrl =
+    story.raw?.seasons?.[0]?.episodes?.[episodeIndex]?.videoUrl;
+
+  const source = episodeVideoUrl || story.videoUrl || VIDEO_URL;
+
+  console.log("🎬 Playing episode:", episode);
+  console.log("🎬 Video URL:", source);
+
   const player = useVideoPlayer(source, (p) => {
     p.loop = false;
     p.staysActiveInBackground = false;
