@@ -22,8 +22,8 @@
         {
           "android": {
             "kotlinVersion": "2.2.20",
-            "compileSdkVersion": 37,
-            "targetSdkVersion": 37
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35
           }
         }
       ],
