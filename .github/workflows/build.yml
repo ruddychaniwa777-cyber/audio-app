@@ -30,7 +30,7 @@ jobs:
         run: npx expo prebuild --platform android --clean
 
       - name: Bundle JavaScript Offline
-        run: npx expo export --platform android --dev false
+        run: npx expo export --platform android 
 
       - name: Build Standalone APK
         run: |
