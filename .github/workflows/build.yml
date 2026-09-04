@@ -29,7 +29,7 @@ jobs:
       - name: Prebuild Native Android Project
         run: npx expo prebuild --platform android --no-install
 
-      - name: Bundle JS and Build APK
+      - name: Build Debug APK
         run: |
           cd android
           chmod +x gradlew
