@@ -26,9 +26,14 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
-      - name: Build APK with Gradle
-        uses: sparkfabrik/android-build-action@v1.5.0
+      - name: Grant Execute Permission for Gradlew
+        run: cd android && chmod +x gradlew
+
+      - name: Build Debug APK
+        run: cd android && ./gradlew assembleDebug
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
         with:
-          project-path: android
-          output-path: app-debug.apk
-          gradle-task: assembleDebug
+          name: app-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
