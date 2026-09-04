@@ -29,11 +29,10 @@ jobs:
       - name: Prebuild Native Android Project
         run: npx expo prebuild --platform android --clean
 
-      - name: Bundle JavaScript using Expo Export
+      - name: Create Assets Directory and Bundle JS
         run: |
           mkdir -p android/app/src/main/assets
-          npx expo export --platform android --output-dir dist
-          cp dist/android-index.js android/app/src/main/assets/index.android.bundle || npx react-native export-bundle-runtime || true
+          npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res || npx expo export --platform android
 
       - name: Build Debug APK
         run: |
