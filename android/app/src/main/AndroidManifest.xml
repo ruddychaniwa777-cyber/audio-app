@@ -26,7 +26,7 @@
         <action android:name="android.intent.action.VIEW"/>
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
-        <data android:scheme="exp+audio-app"/>
+        <data android:scheme="exp+pocket-rivals"/>
       </intent-filter>
     </activity>
   </application>
