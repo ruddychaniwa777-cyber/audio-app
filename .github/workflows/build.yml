@@ -34,11 +34,11 @@ jobs:
           mkdir -p android/app/src/main/assets
           npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res || true
 
-      - name: Build Debug APK with Stacktrace
+      - name: Build Debug APK Plain Console
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace --info
+          ./gradlew assembleDebug --console=plain --stacktrace
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
