@@ -29,11 +29,11 @@ jobs:
       - name: Prebuild Native Android Project
         run: npx expo prebuild --platform android --no-install
 
-      - name: Grant Execute Permission for Gradlew
-        run: cd android && chmod +x gradlew
-
-      - name: Build Debug APK
-        run: cd android && ./gradlew assembleDebug
+      - name: Bundle JS and Build APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
