@@ -25,10 +25,34 @@ import {
   useAudioPlayerStatus,
   setAudioModeAsync,
 } from "expo-audio";
+import {
+  LevelPlay,
+  LevelPlayInitRequest,
+  LevelPlayRewardedAd,
+  type LevelPlayInitListener,
+  type LevelPlayRewardedAdListener,
+  type LevelPlayAdInfo,
+  type LevelPlayAdError,
+  type LevelPlayReward,
+} from "unity-levelplay-mediation";
 import { useVideoPlayer, VideoView } from "expo-video";
 const API_URL =
   process.env.EXPO_PUBLIC_API_URL?.trim() ||
   "http://16.170.245.45:3000";
+
+// PUBLIC LevelPlay configuration. These are identifiers, not server secrets.
+// Replace both placeholders with the values from your LevelPlay dashboard.
+const LEVELPLAY_APP_KEY =
+  process.env.EXPO_PUBLIC_LEVELPLAY_APP_KEY?.trim() ||
+  "PUT_YOUR_UNITY_LEVELPLAY_APP_KEY_HERE";
+
+const LEVELPLAY_REWARDED_AD_UNIT_ID =
+  process.env.EXPO_PUBLIC_LEVELPLAY_REWARDED_AD_UNIT_ID?.trim() ||
+  "PUT_YOUR_REWARDED_AD_UNIT_ID_HERE";
+
+const LEVELPLAY_REWARDED_PLACEMENT =
+  process.env.EXPO_PUBLIC_LEVELPLAY_REWARDED_PLACEMENT?.trim() ||
+  "PocketRivalsReward";
 
 const AUDIO_URL =
   "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
@@ -444,11 +468,13 @@ function HomeScreen({
   openStory,
   go,
   coins,
+  serverOnline,
 }: {
   stories: Story[];
   openStory: (s: Story) => void;
   go: (s: Screen) => void;
   coins: number;
+  serverOnline: boolean;
 }) {
   const featured = stories[0];
   return (
@@ -459,6 +485,12 @@ function HomeScreen({
         onCoins={() => go("coins")}
         coins={coins}
       />
+      <View style={styles.connectionBar}>
+        <View style={[styles.connectionDot, serverOnline ? styles.connectionOnline : styles.connectionOffline]} />
+        <Text style={styles.connectionText}>
+          {serverOnline ? "Server connected" : "Server unavailable — using offline data"}
+        </Text>
+      </View>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.hero}>
           <Image source={{ uri: featured?.image || FALLBACK_IMAGE }} style={styles.heroImage} />
@@ -1035,10 +1067,16 @@ function RewardsScreen({
   onBack,
   user,
   coins,
+  onWatchAd,
+  adReady,
+  adStatus,
 }: {
   onBack: () => void;
   user: User | null;
   coins: number;
+  onWatchAd: () => void;
+  adReady: boolean;
+  adStatus: string;
 }) {
   return (
     <SafeAreaView style={styles.safe}>
@@ -1054,15 +1092,18 @@ function RewardsScreen({
 
           <View style={styles.challengeCard}>
             <Text style={styles.challengeTitle}>Rewarded ads</Text>
-            <Text style={styles.muted}>Reward: configured by the ad platform</Text>
-            <Text style={styles.muted}>Status: Ad provider not installed yet</Text>
+            <Text style={styles.muted}>Reward: configured in your LevelPlay dashboard</Text>
+            <Text style={styles.muted}>Status: {adStatus}</Text>
           </View>
 
           <Pressable
-            style={[styles.primaryButton, styles.disabled]}
-            disabled
+            style={[styles.primaryButton, (!user || !adReady) && styles.disabled]}
+            disabled={!user || !adReady}
+            onPress={onWatchAd}
           >
-            <Text style={styles.primaryButtonText}>Rewarded ads coming next</Text>
+            <Text style={styles.primaryButtonText}>
+              {!user ? "Log in to watch" : adReady ? "▶ Watch ad & earn" : "Loading ad…"}
+            </Text>
           </Pressable>
 
           <Text style={styles.mutedCenter}>
@@ -1551,8 +1592,195 @@ export default function App() {
   const [coinPackages, setCoinPackages] = useState<CoinPackage[]>(DEFAULT_PACKAGES);
   const [coinLoading, setCoinLoading] = useState(false);
 
+  const [serverOnline, setServerOnline] = useState(false);
+  const [levelPlayReady, setLevelPlayReady] = useState(false);
+  const [rewardedAdReady, setRewardedAdReady] = useState(false);
+  const [rewardedAdStatus, setRewardedAdStatus] = useState("Initializing…");
+  const rewardedAdRef = useRef<LevelPlayRewardedAd | null>(null);
+
 
   const [creatorFollowing, setCreatorFollowing] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const checkServer = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/health`);
+        if (!mounted) return;
+        setServerOnline(response.ok);
+      } catch {
+        if (mounted) setServerOnline(false);
+      }
+    };
+
+    checkServer();
+    const timer = setInterval(checkServer, 15000);
+    return () => {
+      mounted = false;
+      clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function initializeLevelPlay() {
+      if (LEVELPLAY_APP_KEY.startsWith("PUT_YOUR_")) {
+        if (mounted) setRewardedAdStatus("Add your LevelPlay App Key");
+        return;
+      }
+
+      try {
+        setRewardedAdStatus("Connecting to LevelPlay…");
+
+        const initialAdUserId = String(user?.id || `guest${Date.now()}`)
+          .replace(/[^a-zA-Z0-9]/g, "")
+          .slice(0, 64);
+
+        const initRequest = LevelPlayInitRequest.builder(LEVELPLAY_APP_KEY)
+          .withUserId(initialAdUserId)
+          .build();
+
+        const listener: LevelPlayInitListener = {
+          onInitFailed: (error) => {
+            console.warn("LevelPlay init failed", error);
+            if (mounted) {
+              setLevelPlayReady(false);
+              setRewardedAdStatus("Ad service unavailable");
+            }
+          },
+          onInitSuccess: () => {
+            if (!mounted) return;
+            setLevelPlayReady(true);
+            setRewardedAdStatus("Ready — loading rewarded ad…");
+
+            if (LEVELPLAY_REWARDED_AD_UNIT_ID.startsWith("PUT_YOUR_")) {
+              setRewardedAdStatus("Add your Rewarded Ad Unit ID");
+              return;
+            }
+
+            const ad = new LevelPlayRewardedAd(LEVELPLAY_REWARDED_AD_UNIT_ID);
+            rewardedAdRef.current = ad;
+
+            const adListener: LevelPlayRewardedAdListener = {
+              onAdLoaded: (_adInfo: LevelPlayAdInfo) => {
+                if (!mounted) return;
+                setRewardedAdReady(true);
+                setRewardedAdStatus("Ad ready");
+              },
+              onAdLoadFailed: (error: LevelPlayAdError) => {
+                console.warn("Rewarded ad load failed", error);
+                if (!mounted) return;
+                setRewardedAdReady(false);
+                setRewardedAdStatus("No ad available — retrying soon");
+              },
+              onAdInfoChanged: () => {},
+              onAdDisplayed: () => {
+                if (mounted) setRewardedAdStatus("Ad playing…");
+              },
+              onAdDisplayFailed: (error: LevelPlayAdError) => {
+                console.warn("Rewarded ad display failed", error);
+                if (!mounted) return;
+                setRewardedAdReady(false);
+                setRewardedAdStatus("Ad failed to display");
+              },
+              onAdClicked: () => {},
+              onAdClosed: () => {
+                if (!mounted) return;
+                setRewardedAdReady(false);
+                setRewardedAdStatus("Reward being verified by server…");
+                setTimeout(() => {
+                  if (mounted) rewardedAdRef.current?.loadAd().catch(() => {});
+                }, 700);
+              },
+              onAdRewarded: (reward: LevelPlayReward) => {
+                console.log("LevelPlay reward received", reward);
+                if (mounted) setRewardedAdStatus("Reward received — server is confirming it…");
+                // DO NOT add coins here. The server remains authoritative.
+                refreshServerBalance();
+              },
+            };
+
+            ad.setListener(adListener);
+            ad.loadAd().catch((error) => {
+              console.warn("Rewarded ad load error", error);
+              if (mounted) setRewardedAdStatus("Unable to load ad");
+            });
+          },
+        };
+
+        await LevelPlay.init(initRequest, listener);
+      } catch (error) {
+        console.warn("LevelPlay initialization error", error);
+        if (mounted) {
+          setLevelPlayReady(false);
+          setRewardedAdStatus("Ad service unavailable");
+        }
+      }
+    }
+
+    initializeLevelPlay();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!levelPlayReady || !user?.id) return;
+    try {
+      LevelPlay.setDynamicUserId(String(user.id).replace(/[^a-zA-Z0-9]/g, "").slice(0, 64));
+    } catch (error) {
+      console.warn("LevelPlay dynamic user ID error", error);
+    }
+  }, [levelPlayReady, user?.id]);
+
+  async function refreshServerBalance() {
+    if (!token) return;
+    try {
+      const data = await api<any>("/api/me", {}, token);
+      const nextCoins = Number(data?.user?.coins ?? data?.coins);
+      if (Number.isFinite(nextCoins)) {
+        setCoins(nextCoins);
+        if (user && token) await persistSession(user, token, nextCoins);
+      }
+    } catch (error) {
+      console.warn("Balance refresh failed", error);
+    }
+  }
+
+  async function watchRewardedAd() {
+    if (!requireLogin("watch rewarded ads")) return;
+    const ad = rewardedAdRef.current;
+    if (!ad || !levelPlayReady) {
+      Alert.alert("Ads unavailable", "The rewarded ad service is not ready yet.");
+      return;
+    }
+
+    try {
+      if (!user?.id) throw new Error("Your account ID is missing. Please log in again.");
+      const dynamicId = String(user.id).replace(/[^a-zA-Z0-9]/g, "").slice(0, 64);
+      if (!dynamicId) throw new Error("Invalid account ID for ad rewards.");
+      LevelPlay.setDynamicUserId(dynamicId);
+
+      const ready = await ad.isAdReady();
+      if (!ready) {
+        setRewardedAdReady(false);
+        setRewardedAdStatus("Loading a fresh ad…");
+        await ad.loadAd();
+        return;
+      }
+
+      setRewardedAdReady(false);
+      setRewardedAdStatus("Opening real rewarded ad…");
+      await ad.showAd(LEVELPLAY_REWARDED_PLACEMENT);
+    } catch (error: any) {
+      console.warn("Rewarded ad error", error);
+      setRewardedAdStatus("Ad could not be shown");
+      Alert.alert("Ad unavailable", error?.message || "Please try again.");
+    }
+  }
 
   const navigate = (next: Screen, story?: Story) => {
     setPreviousScreen(screen);
@@ -1663,10 +1891,9 @@ export default function App() {
 
     try {
       await api(
-        "/api/like",
+        `/api/shows/${story.id}/like`,
         {
           method: "POST",
-          body: JSON.stringify({ seriesId: story.id, user: user!.username }),
         },
         token
       );
@@ -1709,14 +1936,10 @@ export default function App() {
 
     try {
       await api(
-        "/api/comments",
+        `/api/shows/${selectedStory.id}/comments`,
         {
           method: "POST",
-          body: JSON.stringify({
-            seriesId: selectedStory.id,
-            user: user!.username,
-            text,
-          }),
+          body: JSON.stringify({ text }),
         },
         token
       );
@@ -1726,16 +1949,17 @@ export default function App() {
     }
   }
 
-  function likeComment(id: string) {
+  async function likeComment(id: string) {
     if (!requireLogin("like comments")) return;
-    setCommentLiked((prev) => ({ ...prev, [id]: !prev[id] }));
-    setComments((prev) =>
-      prev.map((c) =>
-        c.id === id
-          ? { ...c, likes: Math.max(0, c.likes + (commentLiked[id] ? -1 : 1)) }
-          : c
-      )
-    );
+    try {
+      const result = await api<any>(`/api/comments/${id}/like`, { method: "POST" }, token);
+      setCommentLiked((prev) => ({ ...prev, [id]: !!result.liked }));
+      setComments((prev) =>
+        prev.map((c) => c.id === id ? { ...c, likes: Number(result.likes ?? c.likes) } : c)
+      );
+    } catch (e: any) {
+      Alert.alert("Comment like failed", e.message);
+    }
   }
 
   async function register() {
@@ -2037,7 +2261,7 @@ export default function App() {
 
   const screenContent = (() => {
     if (screen === "home")
-      return <HomeScreen stories={stories} openStory={openStory} go={navigate} coins={coins} />;
+      return <HomeScreen stories={stories} openStory={openStory} go={navigate} coins={coins} serverOnline={serverOnline} />;
 
     if (screen === "trending")
       return <TrendingScreen stories={stories} openStory={openStory} go={navigate} coins={coins} />;
@@ -2137,6 +2361,9 @@ export default function App() {
           onBack={back}
           user={user}
           coins={coins}
+          onWatchAd={watchRewardedAd}
+          adReady={rewardedAdReady}
+          adStatus={rewardedAdStatus}
         />
       );
 
@@ -2234,7 +2461,7 @@ export default function App() {
 
     // Keep the remaining screens intentionally routed to real screens rather
     // than leaving dead buttons.
-    return <HomeScreen stories={stories} openStory={openStory} go={navigate} coins={coins} />;
+    return <HomeScreen stories={stories} openStory={openStory} go={navigate} coins={coins} serverOnline={serverOnline} />;
   })();
 
   return (
@@ -2332,6 +2559,32 @@ const styles = StyleSheet.create({
     lineHeight: 44,
     fontWeight: "800",
     marginTop: -3,
+  },
+  connectionBar: {
+    minHeight: 30,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#0b0b0b",
+    borderBottomWidth: 1,
+    borderBottomColor: "#151515",
+  },
+  connectionDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginRight: 7,
+  },
+  connectionOnline: {
+    backgroundColor: "#35d07f",
+  },
+  connectionOffline: {
+    backgroundColor: "#777",
+  },
+  connectionText: {
+    color: "#888",
+    fontSize: 10,
+    fontWeight: "700",
   },
   bottomNav: {
     position: "absolute",
