@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   ActivityIndicator,
   Alert,
@@ -25,8 +26,20 @@ import {
   setAudioModeAsync,
 } from "expo-audio";
 import { useVideoPlayer, VideoView } from "expo-video";
-
-const API_URL = "http://16.170.245.45:3000";
+import {
+  LevelPlay,
+  LevelPlayInitRequest,
+  LevelPlayRewardedAd,
+  LevelPlayInterstitialAd,
+  type LevelPlayAdInfo,
+  type LevelPlayAdError,
+  type LevelPlayRewardedAdListener,
+  type LevelPlayInterstitialAdListener,
+} from "unity-levelplay-mediation";
+// Pocket Rivals Master V3 — server-first video + artwork + production LevelPlay ads
+const API_URL =
+  process.env.EXPO_PUBLIC_API_URL?.trim() ||
+  "http://16.170.245.45:3000";
 
 const AUDIO_URL =
   "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
@@ -36,6 +49,24 @@ const VIDEO_URL =
 
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1519608487953-e999c86e7455?w=900";
+
+// LevelPlay production configuration. Keep the private App Key in your build
+// environment/secure config; never commit it to GitHub.
+const LEVELPLAY_APP_KEY =
+  process.env.EXPO_PUBLIC_LEVELPLAY_APP_KEY?.trim() ||
+  "PUT_YOUR_UNITY_LEVELPLAY_APP_KEY_HERE";
+const LEVELPLAY_REWARDED_AD_UNIT_ID =
+  process.env.EXPO_PUBLIC_LEVELPLAY_REWARDED_AD_UNIT_ID?.trim() ||
+  "PUT_YOUR_REWARDED_AD_UNIT_ID_HERE";
+const LEVELPLAY_INTERSTITIAL_AD_UNIT_ID =
+  process.env.EXPO_PUBLIC_LEVELPLAY_INTERSTITIAL_AD_UNIT_ID?.trim() ||
+  "PUT_YOUR_INTERSTITIAL_AD_UNIT_ID_HERE";
+const LEVELPLAY_REWARDED_PLACEMENT =
+  process.env.EXPO_PUBLIC_LEVELPLAY_REWARDED_PLACEMENT?.trim() ||
+  "PocketRivalsReward";
+const LEVELPLAY_INTERSTITIAL_PLACEMENT =
+  process.env.EXPO_PUBLIC_LEVELPLAY_INTERSTITIAL_PLACEMENT?.trim() ||
+  "PocketRivalsBetweenEpisodes";
 
 type Screen =
   | "home" | "trending" | "audio" | "video" | "library" | "profile"
@@ -237,20 +268,27 @@ function normalizeShow(x: any): Story {
         : Array.isArray(x?.seasons)
           ? x.seasons.reduce(
               (total: number, season: any) =>
-                total +
-                (Array.isArray(season?.episodes)
-                  ? season.episodes.length
-                  : 0),
+                total + (Array.isArray(season?.episodes) ? season.episodes.length : 0),
               0
             )
           : 1;
 
+  // Artwork priority: real show/actor thumbnail from the server first.
+  // The blue fallback is only used when the server has no artwork at all.
   const image =
-    typeof x?.image === "string" && x.image.trim()
-      ? x.image.trim()
-      : typeof x?.cover === "string" && x.cover.trim()
-        ? x.cover.trim()
-        : FALLBACK_IMAGE;
+    typeof x?.thumbnail === "string" && x.thumbnail.trim()
+      ? x.thumbnail.trim()
+      : typeof x?.poster === "string" && x.poster.trim()
+        ? x.poster.trim()
+        : typeof firstEpisode?.thumbnail === "string" && firstEpisode.thumbnail.trim()
+          ? firstEpisode.thumbnail.trim()
+          : typeof firstEpisode?.poster === "string" && firstEpisode.poster.trim()
+            ? firstEpisode.poster.trim()
+            : typeof x?.cover === "string" && x.cover.trim()
+              ? x.cover.trim()
+              : typeof x?.image === "string" && x.image.trim()
+                ? x.image.trim()
+                : FALLBACK_IMAGE;
 
   return {
     id: String(x?.id ?? x?._id ?? Date.now()),
@@ -278,52 +316,31 @@ async function api<T = any>(
   options: RequestInit = {},
   token?: string | null
 ): Promise<T> {
-  const url = `${API_URL}${path}`;
   const headers: Record<string, string> = {
     Accept: "application/json",
     "Content-Type": "application/json",
     ...(options.headers as Record<string, string> | undefined),
   };
-
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  console.log("🌐 API REQUEST:", options.method || "GET", url);
+  const response = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers,
+  });
 
+  const text = await response.text();
+  let data: any = {};
   try {
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
-
-    const text = await response.text();
-    let data: any = {};
-
-    try {
-      data = text ? JSON.parse(text) : {};
-    } catch {
-      data = { message: text };
-    }
-
-    console.log("🌐 API STATUS:", response.status, url);
-
-    if (!response.ok) {
-      throw new Error(
-        data?.error ||
-        data?.message ||
-        `Request failed (${response.status})`
-      );
-    }
-
-    console.log("✅ API SUCCESS:", path);
-    return data as T;
-  } catch (error: any) {
-    console.error(
-      "❌ API ERROR:",
-      url,
-      error?.message || error
-    );
-    throw error;
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    data = { message: text };
   }
+
+  if (!response.ok) {
+    throw new Error(data?.error || data?.message || `Request failed (${response.status})`);
+  }
+
+  return data as T;
 }
 
 function Header({
@@ -417,6 +434,15 @@ function SectionTitle({
           <Text style={styles.linkText}>See all</Text>
         </Pressable>
       )}
+    </View>
+  );
+}
+
+function AnalyticsCard({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.analyticsCard}>
+      <Text style={styles.analyticsValue}>{value}</Text>
+      <Text style={styles.analyticsLabel}>{label}</Text>
     </View>
   );
 }
@@ -850,11 +876,7 @@ function VideoScreen({
   onCoins: () => void;
   coins: number;
 }) {
-  const source =
-    story.raw?.seasons?.[0]?.episodes?.[Math.max(0, episode - 1)]?.videoUrl ||
-    story.raw?.episodes?.[Math.max(0, episode - 1)]?.videoUrl ||
-    story.videoUrl ||
-    VIDEO_URL;
+  const source = story.videoUrl || VIDEO_URL;
   const player = useVideoPlayer(source, (p) => {
     p.loop = false;
     p.staysActiveInBackground = false;
@@ -921,6 +943,7 @@ function AudioScreen({
   const player = useAudioPlayer(source, {
     updateInterval: 500,
     downloadFirst: false,
+    preferredForwardBufferDuration: 15,
   });
   const status = useAudioPlayerStatus(player);
 
@@ -1084,35 +1107,50 @@ function CoinsScreen({
 }
 
 function RewardsScreen({
-  claimed,
-  onClaim,
   onBack,
   user,
+  coins,
+  adReady,
+  adLoading,
+  onWatchAd,
 }: {
-  claimed: boolean;
-  onClaim: () => void;
   onBack: () => void;
   user: User | null;
+  coins: number;
+  adReady: boolean;
+  adLoading: boolean;
+  onWatchAd: () => void;
 }) {
   return (
     <SafeAreaView style={styles.safe}>
-      <Header title="Rewards" onBack={onBack} coins={0} />
-      <View style={styles.rewards}>
-        <Text style={styles.rewardIcon}>🎁</Text>
-        <Text style={styles.pageTitle}>Daily reward</Text>
-        <Text style={styles.mutedCenter}>
-          Rewards are reserved for authenticated users. Real ad-gated rewards can be connected later.
-        </Text>
-        <Pressable
-          style={[styles.primaryButton, claimed && styles.disabled]}
-          onPress={onClaim}
-          disabled={claimed || !user}
-        >
-          <Text style={styles.primaryButtonText}>
-            {!user ? "Log in to claim" : claimed ? "Claimed today" : "Claim 100 coins"}
+      <Header title="Rewards" onBack={onBack} coins={coins} />
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.rewards}>
+          <Text style={styles.rewardIcon}>🎁</Text>
+          <Text style={styles.pageTitle}>Watch & Earn</Text>
+          <Text style={styles.mutedCenter}>
+            Watch a real rewarded ad and earn coins after LevelPlay confirms the reward.
           </Text>
-        </Pressable>
-      </View>
+
+          <View style={styles.challengeCard}>
+            <Text style={styles.challengeTitle}>Rewarded video</Text>
+            <Text style={styles.muted}>Status: {adLoading ? "Loading ad…" : adReady ? "Ready" : "Preparing…"}</Text>
+            <Text style={styles.muted}>Your wallet is verified by the Pocket Rivals server.</Text>
+          </View>
+
+          <Pressable
+            style={[styles.primaryButton, (!user || !adReady || adLoading) && styles.disabled]}
+            disabled={!user || !adReady || adLoading}
+            onPress={onWatchAd}
+          >
+            {adLoading ? <ActivityIndicator /> : <Text style={styles.primaryButtonText}>▶ Watch ad for coins</Text>}
+          </Pressable>
+
+          {!user && (
+            <Text style={styles.mutedCenter}>Log in first so the server can credit the correct wallet.</Text>
+          )}
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -1187,6 +1225,9 @@ function AIScreen({
 function RegisterScreen({
   onBack,
   onSubmit,
+  onLogin,
+  mode,
+  setMode,
   username,
   setUsername,
   email,
@@ -1197,6 +1238,9 @@ function RegisterScreen({
 }: {
   onBack: () => void;
   onSubmit: () => void;
+  onLogin: () => void;
+  mode: "register" | "login";
+  setMode: (v: "register" | "login") => void;
   username: string;
   setUsername: (v: string) => void;
   email: string;
@@ -1205,26 +1249,35 @@ function RegisterScreen({
   setPassword: (v: string) => void;
   loading: boolean;
 }) {
+  const isLogin = mode === "login";
   return (
     <SafeAreaView style={styles.safe}>
-      <Header title="Register / Login" onBack={onBack} coins={0} />
+      <Header title={isLogin ? "Log in" : "Create account"} onBack={onBack} coins={0} />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <ScrollView contentContainerStyle={styles.form}>
-          <Text style={styles.pageTitle}>Create your account</Text>
-          <Text style={styles.muted}>No default user. Every tester gets their own account.</Text>
+          <Text style={styles.pageTitle}>{isLogin ? "Welcome back" : "Create your account"}</Text>
+          <Text style={styles.muted}>
+            {isLogin
+              ? "Your account is saved on this device, so you won't need to log in every time."
+              : "Create an account once. Pocket Rivals will remember your signed-in session."}
+          </Text>
 
-          <Text style={styles.fieldLabel}>Username</Text>
-          <TextInput
-            value={username}
-            onChangeText={setUsername}
-            placeholder="Choose a username"
-            placeholderTextColor="#666"
-            style={styles.formInput}
-            autoCapitalize="none"
-          />
+          {!isLogin && (
+            <>
+              <Text style={styles.fieldLabel}>Username</Text>
+              <TextInput
+                value={username}
+                onChangeText={setUsername}
+                placeholder="Choose a username"
+                placeholderTextColor="#666"
+                style={styles.formInput}
+                autoCapitalize="none"
+              />
+            </>
+          )}
 
           <Text style={styles.fieldLabel}>Email</Text>
           <TextInput
@@ -1235,6 +1288,7 @@ function RegisterScreen({
             style={styles.formInput}
             keyboardType="email-address"
             autoCapitalize="none"
+            autoComplete="email"
           />
 
           <Text style={styles.fieldLabel}>Password</Text>
@@ -1245,10 +1299,29 @@ function RegisterScreen({
             placeholderTextColor="#666"
             style={styles.formInput}
             secureTextEntry
+            autoComplete={isLogin ? "current-password" : "new-password"}
           />
 
-          <Pressable style={styles.primaryButton} onPress={onSubmit} disabled={loading}>
-            {loading ? <ActivityIndicator /> : <Text style={styles.primaryButtonText}>Create account</Text>}
+          <Pressable
+            style={styles.primaryButton}
+            onPress={isLogin ? onLogin : onSubmit}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator />
+            ) : (
+              <Text style={styles.primaryButtonText}>{isLogin ? "Log in" : "Create account"}</Text>
+            )}
+          </Pressable>
+
+          <Pressable
+            style={styles.secondaryButton}
+            onPress={() => setMode(isLogin ? "register" : "login")}
+            disabled={loading}
+          >
+            <Text style={styles.secondaryButtonText}>
+              {isLogin ? "Need an account? Create one" : "Already have an account? Log in"}
+            </Text>
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -1286,6 +1359,17 @@ function CreatorScreen({
             <Text style={styles.secondaryButtonText}>Creator studio</Text>
           </Pressable>
         </View>
+
+        <SectionTitle title="Creator Analytics" />
+        <View style={styles.analyticsGrid}>
+          <AnalyticsCard label="Total Plays" value={money(story.plays)} />
+          <AnalyticsCard label="Likes" value={money(story.likes)} />
+          <AnalyticsCard label="Growth" value="Live" />
+          <AnalyticsCard label="Estimated Earnings" value={`$${Number(story.raw?.estimatedEarnings ?? 0).toFixed(2)}`} />
+        </View>
+        <Text style={[styles.muted, { marginBottom: 18 }]}>
+          Estimated earnings are shown separately from confirmed payouts. Actual creator payments will be based on server-side analytics and the creator payout rules.
+        </Text>
 
         <SectionTitle title="Creator challenge" />
         <View style={styles.challengeCard}>
@@ -1521,6 +1605,7 @@ export default function App() {
   const [autoUnlock, setAutoUnlock] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
+  const [authMode, setAuthMode] = useState<"register" | "login">("register");
   const [regUsername, setRegUsername] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
@@ -1545,6 +1630,14 @@ export default function App() {
   const [coinPackages, setCoinPackages] = useState<CoinPackage[]>(DEFAULT_PACKAGES);
   const [coinLoading, setCoinLoading] = useState(false);
 
+  const rewardedAdRef = useRef<LevelPlayRewardedAd | null>(null);
+  const interstitialAdRef = useRef<LevelPlayInterstitialAd | null>(null);
+  const [adsInitialized, setAdsInitialized] = useState(false);
+  const [rewardedAdReady, setRewardedAdReady] = useState(false);
+  const [rewardedAdLoading, setRewardedAdLoading] = useState(false);
+  const [interstitialAdReady, setInterstitialAdReady] = useState(false);
+  const [watchedEpisodes, setWatchedEpisodes] = useState(0);
+
   const [creatorFollowing, setCreatorFollowing] = useState(false);
 
   const navigate = (next: Screen, story?: Story) => {
@@ -1555,46 +1648,233 @@ export default function App() {
 
   const back = () => setScreen(previousScreen || "home");
 
+  async function refreshWalletFromServer() {
+    if (!token) return;
+    try {
+      const me = await api<any>("/api/me", {}, token);
+      const account = me?.user ?? me?.account ?? me;
+      const balance = Number(me?.coins ?? account?.coins ?? me?.balance);
+      if (Number.isFinite(balance)) setCoins(balance);
+    } catch {}
+  }
+
+  async function initializeLevelPlay() {
+    if (Platform.OS !== "android" && Platform.OS !== "ios") return;
+    if (!LEVELPLAY_APP_KEY || LEVELPLAY_APP_KEY.includes("PUT_YOUR_")) {
+      console.warn("Pocket Rivals: LevelPlay App Key is not configured.");
+      return;
+    }
+
+    try {
+      const request = LevelPlayInitRequest.builder(LEVELPLAY_APP_KEY)
+        .withUserId(user?.id || `guest-${Date.now()}`.slice(0, 64))
+        .build();
+
+      await LevelPlay.init(request, {
+        onInitFailed: (error) => {
+          console.error("LevelPlay init failed:", error);
+          setAdsInitialized(false);
+        },
+        onInitSuccess: () => {
+          console.log("LevelPlay initialized");
+          setAdsInitialized(true);
+        },
+      });
+    } catch (e) {
+      console.error("LevelPlay initialization error:", e);
+    }
+  }
+
+  async function loadRewardedAd() {
+    if (!adsInitialized || !LEVELPLAY_REWARDED_AD_UNIT_ID || LEVELPLAY_REWARDED_AD_UNIT_ID.includes("PUT_YOUR_")) return;
+    try {
+      setRewardedAdLoading(true);
+      if (!rewardedAdRef.current) {
+        rewardedAdRef.current = new LevelPlayRewardedAd(LEVELPLAY_REWARDED_AD_UNIT_ID);
+        const listener: LevelPlayRewardedAdListener = {
+          onAdLoaded: () => setRewardedAdReady(true),
+          onAdLoadFailed: (error: LevelPlayAdError) => {
+            console.warn("Rewarded ad load failed:", error);
+            setRewardedAdReady(false);
+          },
+          onAdInfoChanged: (_info: LevelPlayAdInfo) => {},
+          onAdDisplayed: () => {},
+          onAdDisplayFailed: (error: LevelPlayAdError) => {
+            console.warn("Rewarded ad display failed:", error);
+            setRewardedAdReady(false);
+          },
+          onAdClicked: () => {},
+          onAdClosed: () => {
+            setRewardedAdReady(false);
+            setTimeout(() => loadRewardedAd(), 800);
+          },
+          // Do NOT credit coins here. LevelPlay S2S callback credits the wallet.
+          onAdRewarded: () => {
+            console.log("LevelPlay reward earned; waiting for server S2S confirmation.");
+            setTimeout(() => refreshWalletFromServer(), 1500);
+            setTimeout(() => refreshWalletFromServer(), 4500);
+          },
+        };
+        rewardedAdRef.current.setListener(listener);
+      }
+      await rewardedAdRef.current.loadAd();
+    } catch (e) {
+      console.warn("Rewarded ad error:", e);
+    } finally {
+      setRewardedAdLoading(false);
+    }
+  }
+
+  async function watchRewardedAd() {
+    if (!requireLogin("watch rewarded ads")) return;
+    if (!rewardedAdRef.current) return;
+    try {
+      await LevelPlay.setDynamicUserId(String(user?.id || user?.username || "guest").replace(/[^a-zA-Z0-9]/g, "").slice(0, 64));
+      if (await rewardedAdRef.current.isAdReady()) {
+        setRewardedAdLoading(true);
+        await rewardedAdRef.current.showAd(LEVELPLAY_REWARDED_PLACEMENT);
+      } else {
+        Alert.alert("Ad not ready", "We are loading a new rewarded ad. Try again in a moment.");
+        await loadRewardedAd();
+      }
+    } catch (e: any) {
+      Alert.alert("Ad unavailable", e?.message || "The rewarded ad could not be shown.");
+    } finally {
+      setRewardedAdLoading(false);
+    }
+  }
+
+  async function loadInterstitialAd() {
+    if (!adsInitialized || !LEVELPLAY_INTERSTITIAL_AD_UNIT_ID || LEVELPLAY_INTERSTITIAL_AD_UNIT_ID.includes("PUT_YOUR_")) return;
+    try {
+      if (!interstitialAdRef.current) {
+        interstitialAdRef.current = new LevelPlayInterstitialAd(LEVELPLAY_INTERSTITIAL_AD_UNIT_ID);
+        const listener: LevelPlayInterstitialAdListener = {
+          onAdLoaded: () => setInterstitialAdReady(true),
+          onAdLoadFailed: (error: LevelPlayAdError) => {
+            console.warn("Interstitial load failed:", error);
+            setInterstitialAdReady(false);
+          },
+          onAdInfoChanged: (_info: LevelPlayAdInfo) => {},
+          onAdDisplayed: () => {},
+          onAdDisplayFailed: (error: LevelPlayAdError) => console.warn("Interstitial display failed:", error),
+          onAdClicked: () => {},
+          onAdClosed: () => {
+            setInterstitialAdReady(false);
+            setTimeout(() => loadInterstitialAd(), 800);
+          },
+        };
+        interstitialAdRef.current.setListener(listener);
+      }
+      await interstitialAdRef.current.loadAd();
+    } catch (e) {
+      console.warn("Interstitial error:", e);
+    }
+  }
+
+  async function maybeShowInterstitial() {
+    if (!interstitialAdRef.current || !interstitialAdReady) return;
+    try {
+      if (await interstitialAdRef.current.isAdReady()) {
+        await interstitialAdRef.current.showAd(LEVELPLAY_INTERSTITIAL_PLACEMENT);
+      }
+    } catch {}
+  }
+
+  useEffect(() => {
+    initializeLevelPlay();
+  }, []);
+
+  useEffect(() => {
+    if (!adsInitialized) return;
+    loadRewardedAd();
+    loadInterstitialAd();
+  }, [adsInitialized]);
+
+  useEffect(() => {
+    if (!adsInitialized || !user?.id) return;
+    LevelPlay.setDynamicUserId(String(user.id).replace(/[^a-zA-Z0-9]/g, "").slice(0, 64)).catch(() => {});
+  }, [adsInitialized, user?.id]);
+
   useEffect(() => {
     loadShows();
     loadCoinPackages();
+    restoreSession();
   }, []);
+
+  async function restoreSession() {
+    try {
+      const raw = await AsyncStorage.getItem("pocket_rivals_session");
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (!saved?.token || !saved?.user) return;
+      setToken(String(saved.token));
+      setUser(saved.user);
+      setCoins(Number(saved.coins ?? 0));
+    } catch {
+      await AsyncStorage.removeItem("pocket_rivals_session").catch(() => undefined);
+    }
+  }
+
+  async function persistSession(nextUser: User, nextToken: string | null, nextCoins: number) {
+    if (!nextToken) return;
+    await AsyncStorage.setItem(
+      "pocket_rivals_session",
+      JSON.stringify({ user: nextUser, token: nextToken, coins: nextCoins })
+    );
+  }
+
 
   useEffect(() => {
     likedRef.current = liked;
   }, [liked]);
 
-  async function loadShows() {
-    console.log("🚀 Loading Pocket Rivals shows from:", API_URL);
+  useEffect(() => {
+    if (!user || !token) return;
+    persistSession(user, token, coins).catch(() => undefined);
+  }, [user, token, coins]);
 
+  async function loadShows() {
     try {
       const data = await api<any>("/api/shows");
-      const raw = Array.isArray(data) ? data : data?.shows;
-
-      if (Array.isArray(raw) && raw.length > 0) {
-        const normalized = raw.map(normalizeShow);
-        setStories(normalized);
-        console.log("✅ Loaded", normalized.length, "shows from server");
-      } else {
-        console.warn("⚠️ /api/shows returned no shows");
+      const raw = Array.isArray(data) ? data : data.shows;
+      if (Array.isArray(raw) && raw.length) {
+        setStories(raw.map(normalizeShow));
       }
-    } catch (error: any) {
-      console.error("❌ loadShows failed:", error?.message || error);
-      // Keep the local fallback stories if the server is temporarily unavailable.
+    } catch {
+      // Offline fallback intentionally remains available for tester builds.
     }
   }
 
-  function loadCoinPackages() {
-    // The current backend does not expose GET /api/coins/packages.
-    // Use the configured Paynow packages locally until that server route exists.
-    setCoinPackages(DEFAULT_PACKAGES);
+  async function loadCoinPackages() {
+    try {
+      const data = await api<any>("/api/coins/packages");
+      const raw = Array.isArray(data) ? data : data.packages;
+      if (Array.isArray(raw) && raw.length) {
+        setCoinPackages(
+          raw.map((x: any) => ({
+            coins: Number(x.coins),
+            amount: String(x.amount ?? x.price ?? ""),
+            url: String(x.url ?? x.paymentUrl ?? ""),
+          }))
+        );
+      }
+    } catch {
+      setCoinPackages(DEFAULT_PACKAGES);
+    }
   }
 
   function requireLogin(action: string) {
     if (user && token) return true;
     Alert.alert("Login required", `Please register or log in before you ${action}.`, [
       { text: "Later", style: "cancel" },
-      { text: "Register", onPress: () => navigate("register") },
+      {
+        text: "Log in / Register",
+        onPress: () => {
+          setAuthMode("login");
+          navigate("register");
+        },
+      },
     ]);
     return false;
   }
@@ -1617,8 +1897,11 @@ export default function App() {
 
     try {
       await api(
-        `/api/shows/${encodeURIComponent(story.id)}/like`,
-        { method: "POST" },
+        "/api/like",
+        {
+          method: "POST",
+          body: JSON.stringify({ seriesId: story.id, user: user!.username }),
+        },
         token
       );
     } catch (e: any) {
@@ -1660,10 +1943,14 @@ export default function App() {
 
     try {
       await api(
-        `/api/shows/${encodeURIComponent(selectedStory.id)}/comments`,
+        "/api/comments",
         {
           method: "POST",
-          body: JSON.stringify({ text }),
+          body: JSON.stringify({
+            seriesId: selectedStory.id,
+            user: user!.username,
+            text,
+          }),
         },
         token
       );
@@ -1701,27 +1988,7 @@ export default function App() {
         body: JSON.stringify({ username, email, password }),
       });
 
-      const login = await api<any>("/api/login", {
-        method: "POST",
-        body: JSON.stringify({ email, password }),
-      });
-
-      const newToken = login.token ?? login.accessToken ?? null;
-      const account = login.user ?? login.account ?? {
-        username,
-        email,
-      };
-
-      setToken(newToken);
-      setUser({
-        id: account.id ?? account._id,
-        username: account.username ?? username,
-        email: account.email ?? email,
-      });
-      setCoins(Number(login.coins ?? account.coins ?? 0));
-      setRegPassword("");
-      navigate("profile");
-      Alert.alert("Welcome", "Your Pocket Rivals account is ready.");
+      await loginAccount(email, password, true);
     } catch (e: any) {
       Alert.alert("Registration failed", e.message);
     } finally {
@@ -1729,7 +1996,51 @@ export default function App() {
     }
   }
 
-  function logout() {
+  async function loginAccount(emailOverride?: string, passwordOverride?: string, fromRegister = false) {
+    const email = (emailOverride ?? regEmail).trim().toLowerCase();
+    const password = passwordOverride ?? regPassword;
+
+    if (!email.includes("@")) return Alert.alert("Invalid email", "Enter a valid email.");
+    if (password.length < 6) return Alert.alert("Invalid password", "Use at least 6 characters.");
+
+    if (!fromRegister) setAuthLoading(true);
+    try {
+      const login = await api<any>("/api/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
+
+      const newToken = login.token ?? login.accessToken ?? null;
+      if (!newToken) throw new Error("The server did not return a login token.");
+
+      const account = login.user ?? login.account ?? {
+        username: regUsername || email.split("@")[0],
+        email,
+      };
+      const nextUser: User = {
+        id: account.id ?? account._id,
+        username: account.username ?? (regUsername || email.split("@")[0]),
+        email: account.email ?? email,
+      };
+      const nextCoins = Number(login.coins ?? account.coins ?? 0);
+
+      setToken(newToken);
+      setUser(nextUser);
+      setCoins(nextCoins);
+      await persistSession(nextUser, newToken, nextCoins);
+      setRegPassword("");
+      navigate("profile");
+      if (!fromRegister) Alert.alert("Welcome back", `You're signed in as ${nextUser.username}.`);
+      else Alert.alert("Welcome", "Your Pocket Rivals account is ready.");
+    } catch (e: any) {
+      Alert.alert("Login failed", e.message || "Unable to sign in.");
+    } finally {
+      if (!fromRegister) setAuthLoading(false);
+    }
+  }
+
+  async function logout() {
+    await AsyncStorage.removeItem("pocket_rivals_session").catch(() => undefined);
     setUser(null);
     setToken(null);
     setCoins(0);
@@ -1885,27 +2196,6 @@ export default function App() {
     }
   }
 
-  async function claimReward() {
-    if (!requireLogin("claim rewards")) return;
-
-    // Do not fake a wallet credit on the device.
-    try {
-      const result = await api<any>(
-        "/api/rewards/claim",
-        { method: "POST", body: JSON.stringify({ reward: "daily" }) },
-        token
-      );
-      const newBalance = Number(result.coins ?? result.balance);
-      if (Number.isFinite(newBalance)) setCoins(newBalance);
-      setClaimedDaily(true);
-    } catch {
-      Alert.alert(
-        "Reward not active",
-        "The server reward endpoint is not enabled yet. Real ad-gated rewards can be connected without changing this UI."
-      );
-    }
-  }
-
   function openEpisode(ep: number) {
     const locked = ep >= selectedStory.lockedFrom;
     if (!locked || unlocked[`${selectedStory.id}:${ep}`]) {
@@ -2037,7 +2327,13 @@ export default function App() {
           story={selectedStory}
           episode={currentEpisode}
           onBack={() => navigate("detail")}
-          onNext={() => {
+          onNext={async () => {
+            const nextWatched = watchedEpisodes + 1;
+            setWatchedEpisodes(nextWatched);
+            if (nextWatched >= 5) {
+              setWatchedEpisodes(0);
+              await maybeShowInterstitial();
+            }
             if (currentEpisode < selectedStory.episodes) openEpisode(currentEpisode + 1);
             else Alert.alert("End", "You reached the end of this story.");
           }}
@@ -2078,10 +2374,12 @@ export default function App() {
     if (screen === "rewards")
       return (
         <RewardsScreen
-          claimed={claimedDaily}
-          onClaim={claimReward}
           onBack={back}
           user={user}
+          coins={coins}
+          adReady={rewardedAdReady}
+          adLoading={rewardedAdLoading}
+          onWatchAd={watchRewardedAd}
         />
       );
 
@@ -2103,6 +2401,9 @@ export default function App() {
         <RegisterScreen
           onBack={back}
           onSubmit={register}
+          onLogin={() => loginAccount()}
+          mode={authMode}
+          setMode={setAuthMode}
           username={regUsername}
           setUsername={setRegUsername}
           email={regEmail}
@@ -2261,15 +2562,19 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   iconButton: {
-    width: 36,
-    height: 36,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#171717",
   },
   iconText: {
     color: "#fff",
-    fontSize: 36,
-    lineHeight: 36,
+    fontSize: 42,
+    lineHeight: 44,
+    fontWeight: "800",
+    marginTop: -3,
   },
   bottomNav: {
     position: "absolute",
@@ -2550,6 +2855,32 @@ const styles = StyleSheet.create({
     fontSize: 21,
     fontWeight: "900",
     marginBottom: 4,
+  },
+  analyticsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 8,
+  },
+  analyticsCard: {
+    width: "48%",
+    minHeight: 105,
+    backgroundColor: "#111",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#222",
+    justifyContent: "center",
+  },
+  analyticsValue: {
+    color: "#fff",
+    fontSize: 24,
+    fontWeight: "900",
+    marginBottom: 5,
+  },
+  analyticsLabel: {
+    color: "#777",
+    fontSize: 14,
   },
   profileGrid: {
     flexDirection: "row",

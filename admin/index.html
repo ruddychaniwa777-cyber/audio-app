@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Pocket Rivals Admin</title>
+  <link rel="stylesheet" href="/admin/style.css">
+</head>
+<body>
+
+<div id="app">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">PR</div>
+      <div>
+        <strong>Pocket Rivals</strong>
+        <span>ADMIN</span>
+      </div>
+    </div>
+
+    <nav>
+      <button class="nav-item active" data-page="dashboard">🏠 <span>Dashboard</span></button>
+      <button class="nav-item" data-page="users">👥 <span>Users</span></button>
+      <button class="nav-item" data-page="videos">🎬 <span>Videos</span></button>
+      <button class="nav-item" data-page="moderation">🤖 <span>AI Moderation</span></button>
+      <button class="nav-item" data-page="comments">💬 <span>Comments</span></button>
+      <button class="nav-item" data-page="payments">💰 <span>Payments</span></button>
+      <button class="nav-item" data-page="analytics">📊 <span>Analytics</span></button>
+      <button class="nav-item" data-page="rewards">🎁 <span>Rewards</span></button>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <button class="nav-item" data-page="settings">⚙️ <span>Settings</span></button>
+      <div class="server-status">
+        <span class="status-dot"></span>
+        <span>API Online</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <header class="topbar">
+      <button id="menuBtn" class="menu-btn">☰</button>
+
+      <div>
+        <h1 id="pageTitle">Dashboard</h1>
+        <p id="pageSubtitle">Pocket Rivals command center</p>
+      </div>
+
+      <div class="top-actions">
+        <button id="refreshBtn" class="icon-btn" title="Refresh">↻</button>
+        <div class="admin-badge">ADMIN</div>
+      </div>
+    </header>
+
+    <section id="content"></section>
+
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<div id="modal" class="modal hidden">
+  <div class="modal-box">
+    <button id="modalClose" class="modal-close">×</button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<script src="/admin/app.js"></script>
+</body>
+</html>
