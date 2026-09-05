@@ -18,22 +18,8 @@ import {
   Dimensions,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import {
-  LevelPlay,
-  LevelPlayInitRequest,
-  LevelPlayInitListener,
-  LevelPlayRewardedAd,
-  LevelPlayRewardedAdListener,
-  LevelPlayAdInfo,
-  LevelPlayAdError,
-  LevelPlayReward,
-} from "@unity-metatag/react-native-levelplay";
 
 const API_URL = "http://16.170.245.45:3000";
-
-const LEVELPLAY_APP_KEY = "PUT_YOUR_LEVELPLAY_APP_KEY";
-const LEVELPLAY_REWARDED_AD_UNIT_ID = "PUT_YOUR_REWARDED_AD_UNIT_ID";
-const LEVELPLAY_REWARDED_PLACEMENT = "DefaultRewardedAd";
 
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=400&auto=format&fit=crop";
@@ -123,23 +109,6 @@ const INITIAL_STORIES: Story[] = [
     status: "approved",
     videoUrl: VIDEO_URL,
   },
-  {
-    id: "story-2",
-    title: "Midnight Symphony",
-    genre: "Romance",
-    category: "Trending",
-    views: 98000,
-    likes: 12400,
-    image: FALLBACK_IMAGE,
-    description: "Two musicians meet in a rain-soaked city and discover harmony in unexpected places.",
-    storyCaption: "Midnight Symphony — Streaming!",
-    creator: "Studio Audio",
-    episodes: 8,
-    lockedFrom: 2,
-    duration: 2,
-    status: "approved",
-    videoUrl: VIDEO_URL,
-  },
 ];
 
 const DEFAULT_PACKAGES: CoinPackage[] = [
@@ -150,7 +119,6 @@ const DEFAULT_PACKAGES: CoinPackage[] = [
 
 const INITIAL_COMMENTS: CommentItem[] = [
   { id: "c1", user: "AudioFan99", text: "This story is amazing! Can't wait for the next episode.", likes: 42 },
-  { id: "c2", user: "SeriesBinge", text: "That plot twist completely caught me off guard 🔥", likes: 19 },
 ];
 
 async function api<T>(path: string, options: RequestInit = {}, token?: string | null): Promise<T> {
@@ -265,25 +233,11 @@ function BottomNav({ active, go }: { active: Screen; go: (s: Screen) => void }) 
   );
 }
 
-function HomeScreen({
-  stories,
-  openStory,
-  go,
-  coins,
-  serverOnline,
-}: {
-  stories: Story[];
-  openStory: (s: Story) => void;
-  go: (s: Screen) => void;
-  coins: number;
-  serverOnline: boolean;
-}) {
+function HomeScreen({ stories, openStory, go, coins, serverOnline }: any) {
   const hero = stories[0] || INITIAL_STORIES[0];
-
   return (
     <SafeAreaView style={styles.safe}>
       <Header title="PR Pocket Rivals" coins={coins} goCoins={() => go("coins")} />
-      
       {!serverOnline ? (
         <View style={styles.connectionBar}>
           <View style={[styles.connectionDot, styles.connectionOffline]} />
@@ -295,7 +249,6 @@ function HomeScreen({
           <Text style={styles.connectionText}>Connected to live server</Text>
         </View>
       )}
-
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Pressable style={styles.hero} onPress={() => openStory(hero)}>
           <View style={styles.heroOverlay} />
@@ -308,43 +261,13 @@ function HomeScreen({
             </Pressable>
           </View>
         </Pressable>
-
-        <View style={styles.sectionTitle}>
-          <Text style={styles.sectionTitleText}>For You</Text>
-        </View>
-        <FlatList
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          data={stories}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <Pressable style={styles.storyCard} onPress={() => openStory(item)}>
-              <View style={styles.storyGradient} />
-              <View style={styles.storyCardText}>
-                <Text style={styles.storyGenre}>{item.genre}</Text>
-                <Text style={styles.storyTitle} numberOfLines={1}>{item.title}</Text>
-                <Text style={styles.storyMeta}>{money(item.plays)} plays · {money(item.likes)} likes</Text>
-              </View>
-            </Pressable>
-          )}
-        />
-
-        <View style={styles.communityBanner}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.communityTitle}>Pocket AI Assistant</Text>
-            <Text style={styles.muted}>Chat with AI about shows or recommendations.</Text>
-          </View>
-          <Pressable style={styles.primaryButton} onPress={() => go("ai")}>
-            <Text style={styles.primaryButtonText}>Ask AI</Text>
-          </Pressable>
-        </View>
       </ScrollView>
       <BottomNav active="home" go={go} />
     </SafeAreaView>
   );
 }
 
-function TrendingScreen({ stories, openStory, go, coins }: { stories: Story[]; openStory: (s: Story) => void; go: (s: Screen) => void; coins: number }) {
+function TrendingScreen({ stories, openStory, go, coins }: any) {
   return (
     <SafeAreaView style={styles.safe}>
       <Header title="Trending" coins={coins} goCoins={() => go("coins")} />
@@ -367,17 +290,13 @@ function TrendingScreen({ stories, openStory, go, coins }: { stories: Story[]; o
   );
 }
 
-function LibraryScreen({ stories, saved, downloaded, openStory, go, coins }: any) {
+function LibraryScreen({ go, coins }: any) {
   return (
     <SafeAreaView style={styles.safe}>
       <Header title="Library" coins={coins} goCoins={() => go("coins")} />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Pressable style={styles.settingsLink} onPress={() => go("downloads")}>
           <Text style={styles.settingTitle}>Downloads</Text>
-          <Text style={styles.chevron}>›</Text>
-        </Pressable>
-        <Pressable style={styles.settingsLink} onPress={() => go("community")}>
-          <Text style={styles.settingTitle}>Creator Community</Text>
           <Text style={styles.chevron}>›</Text>
         </Pressable>
       </ScrollView>
@@ -398,26 +317,16 @@ function ProfileScreen({ user, go, coins, logout }: any) {
           <Text style={styles.profileName}>{user ? user.username : "Guest User"}</Text>
           <Text style={styles.muted}>{user ? user.email : "Sign in to access creator features"}</Text>
         </View>
-
         <View style={styles.profileGrid}>
           <Pressable style={styles.profileTile} onPress={() => go("coins")}>
             <Text style={styles.tileIcon}>💎</Text>
             <Text style={styles.tileText}>Wallet & Coins</Text>
           </Pressable>
-          <Pressable style={styles.profileTile} onPress={() => go("rewards")}>
-            <Text style={styles.tileIcon}>🎁</Text>
-            <Text style={styles.tileText}>Earn Free Coins</Text>
-          </Pressable>
           <Pressable style={styles.profileTile} onPress={() => go("create")}>
             <Text style={styles.tileIcon}>＋</Text>
             <Text style={styles.tileText}>Upload Show</Text>
           </Pressable>
-          <Pressable style={styles.profileTile} onPress={() => go("settings")}>
-            <Text style={styles.tileIcon}>⚙</Text>
-            <Text style={styles.tileText}>Settings</Text>
-          </Pressable>
         </View>
-
         {user ? (
           <Pressable style={[styles.secondaryButton, { marginTop: 25 }]} onPress={logout}>
             <Text style={styles.secondaryButtonText}>Log out</Text>
@@ -433,7 +342,7 @@ function ProfileScreen({ user, go, coins, logout }: any) {
   );
 }
 
-function DetailScreen({ story, liked, saved, followed, onLike, onSave, onFollow, openComments, openPlayer, openCreator, go, coins }: any) {
+function DetailScreen({ story, liked, saved, onLike, onSave, openComments, openPlayer, go, coins }: any) {
   return (
     <SafeAreaView style={styles.safe}>
       <Header title={story.title} onBack={() => go("home")} coins={coins} goCoins={() => go("coins")} />
@@ -441,7 +350,6 @@ function DetailScreen({ story, liked, saved, followed, onLike, onSave, onFollow,
         <Text style={styles.detailGenre}>{story.genre.toUpperCase()}</Text>
         <Text style={styles.detailTitle}>{story.title}</Text>
         <Text style={styles.detailDescription}>{story.description}</Text>
-
         <View style={styles.actionRow}>
           <Pressable style={styles.actionButton} onPress={onLike}>
             <Text style={styles.actionIcon}>{liked ? "♥" : "♡"}</Text>
@@ -455,18 +363,12 @@ function DetailScreen({ story, liked, saved, followed, onLike, onSave, onFollow,
             <Text style={styles.actionIcon}>{saved ? "📁" : "📂"}</Text>
             <Text style={styles.actionLabel}>Save</Text>
           </Pressable>
-          <Pressable style={styles.actionButton} onPress={onFollow}>
-            <Text style={styles.actionIcon}>{followed ? "✓" : "+"}</Text>
-            <Text style={styles.actionLabel}>Follow</Text>
-          </Pressable>
         </View>
-
         <View style={styles.sectionTitle}>
           <Text style={styles.sectionTitleText}>Episodes ({story.episodes})</Text>
         </View>
         {Array.from({ length: story.episodes }).map((_, i) => {
           const epNum = i + 1;
-          const isLocked = epNum >= story.lockedFrom;
           return (
             <Pressable key={i} style={styles.episodeRow} onPress={() => openPlayer(epNum)}>
               <View style={styles.episodeNumber}>
@@ -474,9 +376,9 @@ function DetailScreen({ story, liked, saved, followed, onLike, onSave, onFollow,
               </View>
               <View style={styles.episodeInfo}>
                 <Text style={styles.episodeTitle}>Episode {epNum}</Text>
-                <Text style={styles.muted}>{isLocked ? "Locked (50 coins)" : "Free to watch"}</Text>
+                <Text style={styles.muted}>Free to watch</Text>
               </View>
-              <Text style={styles.chevron}>{isLocked ? "🔒" : "▶"}</Text>
+              <Text style={styles.chevron}>▶</Text>
             </Pressable>
           );
         })}
@@ -485,7 +387,7 @@ function DetailScreen({ story, liked, saved, followed, onLike, onSave, onFollow,
   );
 }
 
-function VideoScreen({ story, episode, onBack, onNext, onCoins, coins }: any) {
+function VideoScreen({ story, episode, onBack, onNext }: any) {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.videoHeader}>
@@ -504,7 +406,7 @@ function VideoScreen({ story, episode, onBack, onNext, onCoins, coins }: any) {
   );
 }
 
-function CommentsScreen({ comments, text, setText, onSend, liked, onLike, onBack, user }: any) {
+function CommentsScreen({ comments, text, setText, onSend, liked, onLike, onBack }: any) {
   return (
     <SafeAreaView style={styles.safe}>
       <Header title="Comments" onBack={onBack} coins={0} />
@@ -542,7 +444,7 @@ function CommentsScreen({ comments, text, setText, onSend, liked, onLike, onBack
   );
 }
 
-function CoinsScreen({ packages, coins, onBuy, onBack, loading, go }: any) {
+function CoinsScreen({ packages, coins, onBuy, onBack }: any) {
   return (
     <SafeAreaView style={styles.safe}>
       <Header title="Wallet & Coins" onBack={onBack} coins={coins} />
@@ -552,11 +454,6 @@ function CoinsScreen({ packages, coins, onBuy, onBack, loading, go }: any) {
           <Text style={styles.walletCoins}>💎 {coins}</Text>
           <Text style={styles.muted}>Use coins to unlock exclusive episodes and premium stories.</Text>
         </View>
-
-        <Pressable style={[styles.secondaryButton, { marginBottom: 15 }]} onPress={() => go("rewards")}>
-          <Text style={styles.secondaryButtonText}>🎁 Watch Ads for Free Coins</Text>
-        </Pressable>
-
         <View style={styles.sectionTitle}>
           <Text style={styles.sectionTitleText}>Top up coins</Text>
         </View>
@@ -566,28 +463,12 @@ function CoinsScreen({ packages, coins, onBuy, onBack, loading, go }: any) {
               <Text style={styles.packageCoins}>💎 {pkg.coins} Coins</Text>
               <Text style={styles.muted}>${pkg.amount} USD via Paynow</Text>
             </View>
-            <Pressable style={styles.buyButton} onPress={() => onBuy(pkg)} disabled={loading}>
+            <Pressable style={styles.buyButton} onPress={() => onBuy(pkg)}>
               <Text style={styles.buyButtonText}>Buy</Text>
             </Pressable>
           </View>
         ))}
       </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-function RewardsScreen({ onBack, user, coins, onWatchAd, adReady, adStatus }: any) {
-  return (
-    <SafeAreaView style={styles.safe}>
-      <Header title="Earn Coins" onBack={onBack} coins={coins} />
-      <View style={styles.rewards}>
-        <Text style={styles.rewardIcon}>🎁</Text>
-        <Text style={styles.pageTitle}>Rewarded Ads</Text>
-        <Text style={styles.mutedCenter}>{adStatus}</Text>
-        <Pressable style={[styles.primaryButton, { marginTop: 25 }]} onPress={onWatchAd} disabled={!adReady}>
-          <Text style={styles.primaryButtonText}>Watch Ad & Earn Coins</Text>
-        </Pressable>
-      </View>
     </SafeAreaView>
   );
 }
@@ -625,7 +506,7 @@ function AIScreen({ messages, input, setInput, onSend, loading, error, onBack }:
   );
 }
 
-function RegisterScreen({ onBack, onSubmit, onLogin, mode, setMode, username, setUsername, email, setEmail, password, setPassword, loading }: any) {
+function RegisterScreen({ onBack, onSubmit, mode, setMode, username, setUsername, email, setEmail, password, setPassword, loading }: any) {
   return (
     <SafeAreaView style={styles.safe}>
       <Header title={mode === "register" ? "Create Account" : "Sign In"} onBack={onBack} coins={0} />
@@ -636,140 +517,31 @@ function RegisterScreen({ onBack, onSubmit, onLogin, mode, setMode, username, se
             <TextInput style={styles.formInput} placeholder="Your username" placeholderTextColor="#666" value={username} onChangeText={setUsername} />
           </>
         ) : null}
-
         <Text style={styles.fieldLabel}>Email</Text>
         <TextInput style={styles.formInput} placeholder="name@example.com" placeholderTextColor="#666" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
-
         <Text style={styles.fieldLabel}>Password</Text>
         <TextInput style={styles.formInput} placeholder="At least 6 characters" placeholderTextColor="#666" value={password} onChangeText={setPassword} secureTextEntry />
-
         <Pressable style={[styles.primaryButton, { alignSelf: "stretch", marginTop: 25, alignItems: "center" }]} onPress={onSubmit} disabled={loading}>
           {loading ? <ActivityIndicator color="#050505" /> : <Text style={styles.primaryButtonText}>{mode === "register" ? "Create Account" : "Sign In"}</Text>}
         </Pressable>
-
-        <Pressable style={{ marginTop: 20, alignSelf: "center" }} onPress={() => setMode(mode === "register" ? "login" : "register")}>
-          <Text style={styles.linkText}>{mode === "register" ? "Already have an account? Sign in" : "Need an account? Register"}</Text>
-        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function CreatorScreen({ story, following, onToggleFollow, onBack, go }: any) {
-  return (
-    <SafeAreaView style={styles.safe}>
-      <Header title="Creator Studio" onBack={onBack} coins={0} />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.profileHero}>
-          <View style={styles.creatorAvatar}>
-            <Text style={styles.avatarText}>C</Text>
-          </View>
-          <Text style={styles.profileName}>Studio Creator</Text>
-          <Text style={styles.muted}>Content Creator & Storyteller</Text>
-          <Pressable style={[styles.primaryButton, { marginTop: 15 }]} onPress={onToggleFollow}>
-            <Text style={styles.primaryButtonText}>{following ? "Following" : "+ Follow"}</Text>
-          </Pressable>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-function CreateScreen({ title, setTitle, description, setDescription, genre, setGenre, onPublish, onBack, loading, user }: any) {
+function CreateScreen({ title, setTitle, description, setDescription, onPublish, onBack, loading, user }: any) {
   return (
     <SafeAreaView style={styles.safe}>
       <Header title="Upload Show" onBack={onBack} coins={0} />
       <ScrollView contentContainerStyle={styles.form}>
         <Text style={styles.fieldLabel}>Title</Text>
         <TextInput value={title} onChangeText={setTitle} placeholder="Story title..." placeholderTextColor="#666" style={styles.formInput} />
-
         <Text style={styles.fieldLabel}>Description</Text>
         <TextInput value={description} onChangeText={setDescription} placeholder="Tell viewers what this story is about..." placeholderTextColor="#666" style={[styles.formInput, styles.largeInput]} multiline />
-
         <Pressable style={[styles.primaryButton, { alignSelf: "stretch", marginTop: 20, alignItems: "center" }]} onPress={onPublish} disabled={loading || !user}>
           {loading ? <ActivityIndicator color="#050505" /> : <Text style={styles.primaryButtonText}>Submit to server</Text>}
         </Pressable>
       </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-function SettingsScreen({ autoPlay, setAutoPlay, autoUnlock, setAutoUnlock, notifications, setNotifications, onBack, go }: any) {
-  const row = (title: string, value: boolean, setValue: (v: boolean) => void) => (
-    <View style={styles.settingRow}>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.settingTitle}>{title}</Text>
-      </View>
-      <Switch value={value} onValueChange={setValue} />
-    </View>
-  );
-
-  return (
-    <SafeAreaView style={styles.safe}>
-      <Header title="Settings" onBack={onBack} coins={0} />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {row("Autoplay", autoPlay, setAutoPlay)}
-        {row("Auto unlock", autoUnlock, setAutoUnlock)}
-        {row("Notifications", notifications, setNotifications)}
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-function PremiumScreen({ onBack }: any) {
-  return (
-    <SafeAreaView style={styles.safe}>
-      <Header title="Premium" onBack={onBack} coins={0} />
-      <View style={styles.premium}>
-        <Text style={styles.premiumIcon}>✦</Text>
-        <Text style={styles.pageTitle}>Pocket Rivals Premium</Text>
-        <Text style={styles.mutedCenter}>Premium memberships can be connected to your production billing provider later.</Text>
-      </View>
-    </SafeAreaView>
-  );
-}
-
-function CommunityScreen({ go, stories }: any) {
-  return (
-    <SafeAreaView style={styles.safe}>
-      <Header title="Community" onBack={() => go("home")} coins={0} />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.pageTitle}>Creator community</Text>
-        {stories.map((s: Story) => (
-          <View key={s.id} style={styles.communityCard}>
-            <View style={styles.creatorAvatarSmall}>
-              <Text style={{ color: "#fff" }}>{s.creator.slice(0, 1).toUpperCase()}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.settingTitle}>{s.creator}</Text>
-              <Text style={styles.muted}>{s.genre} · {money(s.plays)} plays</Text>
-            </View>
-          </View>
-        ))}
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-function DownloadsScreen({ stories, downloaded, openStory, onBack }: any) {
-  const items = stories.filter((s: Story) => downloaded[s.id]);
-  return (
-    <SafeAreaView style={styles.safe}>
-      <Header title="Downloads" onBack={onBack} coins={0} />
-      {items.length ? (
-        <FlatList data={items} keyExtractor={(x: any) => x.id} contentContainerStyle={styles.listContent} renderItem={({ item }) => <StoryRow story={item} onPress={() => openStory(item)} />} />
-      ) : (
-        <EmptyState title="No downloads" text="Downloads are kept as local app state for this testing build." />
-      )}
-    </SafeAreaView>
-  );
-}
-
-function NotificationsScreen({ onBack }: any) {
-  return (
-    <SafeAreaView style={styles.safe}>
-      <Header title="Notifications" onBack={onBack} coins={0} />
-      <EmptyState title="You're all caught up" text="Creator and story notifications will appear here." />
     </SafeAreaView>
   );
 }
@@ -787,19 +559,10 @@ export default function App() {
   const [liked, setLiked] = useState<Record<string, boolean>>({});
   const likedRef = useRef<Record<string, boolean>>({});
   const [saved, setSaved] = useState<Record<string, boolean>>({});
-  const [followed, setFollowed] = useState<Record<string, boolean>>({});
-  const [downloaded, setDownloaded] = useState<Record<string, boolean>>({});
-  const [unlocked, setUnlocked] = useState<Record<string, boolean>>({});
-  const [commentLiked, setCommentLiked] = useState<Record<string, boolean>>({});
 
-  const [searchQuery, setSearchQuery] = useState("");
   const [comments, setComments] = useState<CommentItem[]>(INITIAL_COMMENTS);
   const [commentText, setCommentText] = useState("");
   const [currentEpisode, setCurrentEpisode] = useState(1);
-
-  const [autoPlay, setAutoPlay] = useState(true);
-  const [autoUnlock, setAutoUnlock] = useState(false);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   const [authMode, setAuthMode] = useState<"register" | "login">("register");
   const [regUsername, setRegUsername] = useState("");
@@ -809,7 +572,6 @@ export default function App() {
 
   const [newStoryTitle, setNewStoryTitle] = useState("");
   const [newStoryDescription, setNewStoryDescription] = useState("");
-  const [newStoryGenre, setNewStoryGenre] = useState("Drama");
   const [createLoading, setCreateLoading] = useState(false);
 
   const [aiMessages, setAiMessages] = useState<AIMessage[]>([
@@ -820,162 +582,27 @@ export default function App() {
   const [aiError, setAiError] = useState("");
 
   const [coinPackages, setCoinPackages] = useState<CoinPackage[]>(DEFAULT_PACKAGES);
-  const [coinLoading, setCoinLoading] = useState(false);
-
   const [serverOnline, setServerOnline] = useState(false);
-  const [levelPlayReady, setLevelPlayReady] = useState(false);
-  const [rewardedAdReady, setRewardedAdReady] = useState(false);
-  const [rewardedAdStatus, setRewardedAdStatus] = useState("Initializing…");
-  const rewardedAdRef = useRef<LevelPlayRewardedAd | null>(null);
 
-  const [creatorFollowing, setCreatorFollowing] = useState(false);
-
-  // FIXED JSON HEALTH CHECK
   useEffect(() => {
     let mounted = true;
-
     const checkServer = async () => {
       try {
         const response = await fetch(`${API_URL}/api/health`);
         const data = await response.json();
-
-        console.log("POCKET RIVALS API STATUS:", response.status);
-        console.log("POCKET RIVALS API DATA:", data);
-
         if (!mounted) return;
-
         setServerOnline(response.ok && data.status === "online");
-      } catch (error: any) {
-        console.log("POCKET RIVALS API ERROR:", error?.message || String(error));
-        if (mounted) {
-          setServerOnline(false);
-        }
+      } catch {
+        if (mounted) setServerOnline(false);
       }
     };
-
     checkServer();
     const timer = setInterval(checkServer, 15000);
-
     return () => {
       mounted = false;
       clearInterval(timer);
     };
   }, []);
-
-  useEffect(() => {
-    let mounted = true;
-
-    async function initializeLevelPlay() {
-      if (LEVELPLAY_APP_KEY.startsWith("PUT_YOUR_")) {
-        if (mounted) setRewardedAdStatus("Add your LevelPlay App Key");
-        return;
-      }
-
-      try {
-        setRewardedAdStatus("Connecting to LevelPlay…");
-        const initialAdUserId = String(user?.id || `guest${Date.now()}`).replace(/[^a-zA-Z0-9]/g, "").slice(0, 64);
-        const initRequest = LevelPlayInitRequest.builder(LEVELPLAY_APP_KEY).withUserId(initialAdUserId).build();
-
-        const listener: LevelPlayInitListener = {
-          onInitFailed: () => {
-            if (mounted) {
-              setLevelPlayReady(false);
-              setRewardedAdStatus("Ad service unavailable");
-            }
-          },
-          onInitSuccess: () => {
-            if (!mounted) return;
-            setLevelPlayReady(true);
-            setRewardedAdStatus("Ready — loading rewarded ad…");
-
-            if (LEVELPLAY_REWARDED_AD_UNIT_ID.startsWith("PUT_YOUR_")) {
-              setRewardedAdStatus("Add your Rewarded Ad Unit ID");
-              return;
-            }
-
-            const ad = new LevelPlayRewardedAd(LEVELPLAY_REWARDED_AD_UNIT_ID);
-            rewardedAdRef.current = ad;
-
-            const adListener: LevelPlayRewardedAdListener = {
-              onAdLoaded: () => {
-                if (!mounted) return;
-                setRewardedAdReady(true);
-                setRewardedAdStatus("Ad ready");
-              },
-              onAdLoadFailed: () => {
-                if (!mounted) return;
-                setRewardedAdReady(false);
-                setRewardedAdStatus("No ad available — retrying soon");
-              },
-              onAdInfoChanged: () => {},
-              onAdDisplayed: () => {
-                if (mounted) setRewardedAdStatus("Ad playing…");
-              },
-              onAdDisplayFailed: () => {
-                if (!mounted) return;
-                setRewardedAdReady(false);
-                setRewardedAdStatus("Ad failed to display");
-              },
-              onAdClicked: () => {},
-              onAdClosed: () => {
-                if (!mounted) return;
-                setRewardedAdReady(false);
-                setRewardedAdStatus("Reward being verified by server…");
-                setTimeout(() => {
-                  if (mounted) rewardedAdRef.current?.loadAd().catch(() => {});
-                }, 700);
-              },
-              onAdRewarded: () => {
-                if (mounted) setRewardedAdStatus("Reward received — server is confirming it…");
-                refreshServerBalance();
-              },
-            };
-
-            ad.setListener(adListener);
-            ad.loadAd().catch(() => {
-              if (mounted) setRewardedAdStatus("Unable to load ad");
-            });
-          },
-        };
-
-        await LevelPlay.init(initRequest, listener);
-      } catch {
-        if (mounted) {
-          setLevelPlayReady(false);
-          setRewardedAdStatus("Ad service unavailable");
-        }
-      }
-    }
-
-    initializeLevelPlay();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  async function refreshServerBalance() {
-    if (!token) return;
-    try {
-      const data = await api<any>("/api/me", {}, token);
-      const nextCoins = Number(data?.user?.coins ?? data?.coins);
-      if (Number.isFinite(nextCoins)) {
-        setCoins(nextCoins);
-      }
-    } catch {}
-  }
-
-  async function watchRewardedAd() {
-    const ad = rewardedAdRef.current;
-    if (!ad || !levelPlayReady) {
-      Alert.alert("Ads unavailable", "The rewarded ad service is not ready yet.");
-      return;
-    }
-    try {
-      await ad.showAd(LEVELPLAY_REWARDED_PLACEMENT);
-    } catch (error: any) {
-      Alert.alert("Ad unavailable", error?.message || "Please try again.");
-    }
-  }
 
   const navigate = (next: Screen, story?: Story) => {
     setPreviousScreen(screen);
@@ -1000,19 +627,8 @@ export default function App() {
       setToken(String(saved.token));
       setUser(saved.user);
       setCoins(Number(saved.coins ?? 0));
-    } catch {
-      await AsyncStorage.removeItem("pocket_rivals_session").catch(() => undefined);
-    }
+    } catch {}
   }
-
-  async function persistSession(nextUser: User, nextToken: string | null, nextCoins: number) {
-    if (!nextToken) return;
-    await AsyncStorage.setItem("pocket_rivals_session", JSON.stringify({ user: nextUser, token: nextToken, coins: nextCoins }));
-  }
-
-  useEffect(() => {
-    likedRef.current = liked;
-  }, [liked]);
 
   async function loadShows() {
     try {
@@ -1029,126 +645,45 @@ export default function App() {
       const data = await api<any>("/api/coins/packages");
       const raw = Array.isArray(data) ? data : data.packages;
       if (Array.isArray(raw) && raw.length) {
-        setCoinPackages(raw.map((x: any) => ({ coins: Number(x.coins), amount: String(x.amount ?? x.price ?? ""), url: String(x.url ?? x.paymentUrl ?? "") })));
+        setCoinPackages(raw.map((x: any) => ({ coins: Number(x.coins), amount: String(x.amount ?? ""), url: String(x.url ?? "") })));
       }
-    } catch {
-      setCoinPackages(DEFAULT_PACKAGES);
-    }
-  }
-
-  function requireLogin(action: string) {
-    if (user && token) return true;
-    Alert.alert("Login required", `Please register or log in before you ${action}.`, [
-      { text: "Later", style: "cancel" },
-      { text: "Log in / Register", onPress: () => { setAuthMode("login"); navigate("register"); } },
-    ]);
-    return false;
+    } catch {}
   }
 
   async function toggleLike(story: Story) {
-    if (!requireLogin("like videos")) return;
-    const wasLiked = !!likedRef.current[story.id];
-    if (wasLiked) return;
-
     setLiked((prev) => ({ ...prev, [story.id]: true }));
-    likedRef.current = { ...likedRef.current, [story.id]: true };
     setStories((prev) => prev.map((s) => (s.id === story.id ? { ...s, likes: s.likes + 1 } : s)));
-
-    try {
-      await api(`/api/shows/${story.id}/like`, { method: "POST" }, token);
-    } catch (e: any) {
-      setLiked((prev) => ({ ...prev, [story.id]: false }));
-      likedRef.current = { ...likedRef.current, [story.id]: false };
-      setStories((prev) => prev.map((s) => (s.id === story.id ? { ...s, likes: Math.max(0, s.likes - 1) } : s)));
-      Alert.alert("Like failed", e.message);
-    }
   }
 
   function toggleSave(id: string) {
     setSaved((prev) => ({ ...prev, [id]: !prev[id] }));
   }
 
-  async function toggleFollow(story: Story) {
-    if (!requireLogin("follow creators")) return;
-    setFollowed((prev) => ({ ...prev, [story.id]: !prev[story.id] }));
-  }
-
   async function postComment() {
-    if (!requireLogin("comment")) return;
     const text = commentText.trim();
     if (!text) return;
-
-    const local: CommentItem = { id: `local-${Date.now()}`, user: user!.username, text, likes: 0 };
+    const local: CommentItem = { id: `local-${Date.now()}`, user: user?.username || "Guest", text, likes: 0 };
     setComments((prev) => [local, ...prev]);
     setCommentText("");
-
-    try {
-      await api(`/api/shows/${selectedStory.id}/comments`, { method: "POST", body: JSON.stringify({ text }) }, token);
-    } catch (e: any) {
-      setComments((prev) => prev.filter((x) => x.id !== local.id));
-      Alert.alert("Comment failed", e.message);
-    }
-  }
-
-  async function likeComment(id: string) {
-    if (!requireLogin("like comments")) return;
-    try {
-      const result = await api<any>(`/api/comments/${id}/like`, { method: "POST" }, token);
-      setCommentLiked((prev) => ({ ...prev, [id]: !!result.liked }));
-      setComments((prev) => prev.map((c) => (c.id === id ? { ...c, likes: Number(result.likes ?? c.likes) } : c)));
-    } catch (e: any) {
-      Alert.alert("Comment like failed", e.message);
-    }
   }
 
   async function register() {
-    const username = regUsername.trim();
-    const email = regEmail.trim().toLowerCase();
-    const password = regPassword;
-
-    if (username.length < 3) return Alert.alert("Invalid username", "Use at least 3 characters.");
-    if (!email.includes("@")) return Alert.alert("Invalid email", "Enter a valid email.");
-    if (password.length < 6) return Alert.alert("Weak password", "Use at least 6 characters.");
-
     setAuthLoading(true);
     try {
-      await api("/api/signup", { method: "POST", body: JSON.stringify({ username, email, password }) });
-      await loginAccount(email, password, true);
+      await api("/api/signup", { method: "POST", body: JSON.stringify({ username: regUsername, email: regEmail, password: regPassword }) });
+      const login = await api<any>("/api/login", { method: "POST", body: JSON.stringify({ email: regEmail, password: regPassword }) });
+      setToken(login.token);
+      setUser(login.user);
+      navigate("profile");
     } catch (e: any) {
-      Alert.alert("Registration failed", e.message);
+      Alert.alert("Failed", e.message);
     } finally {
       setAuthLoading(false);
     }
   }
 
-  async function loginAccount(emailOverride?: string, passwordOverride?: string, fromRegister = false) {
-    const email = (emailOverride ?? regEmail).trim().toLowerCase();
-    const password = passwordOverride ?? regPassword;
-
-    if (!fromRegister) setAuthLoading(true);
-    try {
-      const login = await api<any>("/api/login", { method: "POST", body: JSON.stringify({ email, password }) });
-      const newToken = login.token ?? login.accessToken ?? null;
-      if (!newToken) throw new Error("The server did not return a login token.");
-
-      const account = login.user ?? login.account ?? { username: regUsername || email.split("@")[0], email };
-      const nextUser: User = { id: account.id ?? account._id, username: account.username, email: account.email ?? email };
-      const nextCoins = Number(login.coins ?? account.coins ?? 0);
-
-      setToken(newToken);
-      setUser(nextUser);
-      setCoins(nextCoins);
-      await persistSession(nextUser, newToken, nextCoins);
-      navigate("profile");
-    } catch (e: any) {
-      Alert.alert("Login failed", e.message || "Unable to sign in.");
-    } finally {
-      if (!fromRegister) setAuthLoading(false);
-    }
-  }
-
   async function logout() {
-    await AsyncStorage.removeItem("pocket_rivals_session").catch(() => undefined);
+    await AsyncStorage.removeItem("pocket_rivals_session").catch(() => {});
     setUser(null);
     setToken(null);
     setCoins(0);
@@ -1158,87 +693,33 @@ export default function App() {
   async function sendAI() {
     const message = aiInput.trim();
     if (!message || aiLoading) return;
-
     setAiError("");
-    const userMessage: AIMessage = { id: `u-${Date.now()}`, role: "user", text: message };
-    const nextMessages = [...aiMessages, userMessage];
+    const nextMessages = [...aiMessages, { id: `u-${Date.now()}`, role: "user" as const, text: message }];
     setAiMessages(nextMessages);
     setAiInput("");
     setAiLoading(true);
-
     try {
       const result = await api<any>("/api/ai/chat", { method: "POST", body: JSON.stringify({ message, messages: nextMessages }) }, token);
-      setAiMessages((prev) => [...prev, { id: `a-${Date.now()}`, role: "assistant", text: String(result.reply || "Pocket AI returned no text.") }]);
+      setAiMessages((prev) => [...prev, { id: `a-${Date.now()}`, role: "assistant", text: String(result.reply || "Done") }]);
     } catch (e: any) {
-      setAiError(e.message || "Pocket AI is unavailable.");
+      setAiError(e.message || "AI unavailable");
     } finally {
       setAiLoading(false);
     }
   }
 
   async function publishStory() {
-    if (!requireLogin("publish")) return;
-    if (!newStoryTitle.trim()) return Alert.alert("Missing title", "Add a title.");
-    if (!newStoryDescription.trim()) return Alert.alert("Missing description", "Add a description.");
-
     setCreateLoading(true);
     try {
-      const payload = {
-        title: newStoryTitle.trim(),
-        description: newStoryDescription.trim(),
-        genre: newStoryGenre.trim() || "Drama",
-        author: user!.username,
-        creator: user!.username,
-        image: FALLBACK_IMAGE,
-        plays: 0,
-        likes: 0,
-        episodes: 1,
-        lockedFrom: 2,
-        duration: 1,
-        status: "pending",
-        videoUrl: VIDEO_URL,
-      };
-
-      const result = await api<any>("/api/shows", { method: "POST", body: JSON.stringify(payload) }, token);
-      if (result?.show) {
-        setStories((prev) => [normalizeShow(result.show), ...prev]);
-      } else {
-        await loadShows();
-      }
-
+      await api("/api/shows", { method: "POST", body: JSON.stringify({ title: newStoryTitle, description: newStoryDescription, genre: "Drama", author: user?.username || "Creator" }) }, token);
       setNewStoryTitle("");
       setNewStoryDescription("");
-      Alert.alert("Submitted", "Your story was sent to the server for review.");
-      navigate("creator");
+      navigate("home");
     } catch (e: any) {
-      Alert.alert("Publish failed", e.message);
+      Alert.alert("Error", e.message);
     } finally {
       setCreateLoading(false);
     }
-  }
-
-  async function buyCoins(pkg: CoinPackage) {
-    if (!requireLogin("buy coins")) return;
-    if (pkg.url) {
-      await Linking.openURL(pkg.url);
-    }
-  }
-
-  function openEpisode(ep: number) {
-    const locked = ep >= selectedStory.lockedFrom;
-    if (!locked || unlocked[`${selectedStory.id}:${ep}`]) {
-      setCurrentEpisode(ep);
-      navigate("video");
-      return;
-    }
-    if (!requireLogin("unlock episodes")) return;
-    if (coins < 50) {
-      Alert.alert("Not enough coins", "You need 50 coins to unlock this episode.");
-      return;
-    }
-    setUnlocked((prev) => ({ ...prev, [`${selectedStory.id}:${ep}`]: true }));
-    setCurrentEpisode(ep);
-    navigate("video");
   }
 
   function openStory(story: Story) {
@@ -1249,23 +730,15 @@ export default function App() {
   const screenContent = (() => {
     if (screen === "home") return <HomeScreen stories={stories} openStory={openStory} go={navigate} coins={coins} serverOnline={serverOnline} />;
     if (screen === "trending") return <TrendingScreen stories={stories} openStory={openStory} go={navigate} coins={coins} />;
-    if (screen === "library") return <LibraryScreen stories={stories} saved={saved} downloaded={downloaded} openStory={openStory} go={navigate} coins={coins} />;
+    if (screen === "library") return <LibraryScreen go={navigate} coins={coins} />;
     if (screen === "profile") return <ProfileScreen user={user} go={navigate} coins={coins} logout={logout} />;
-    if (screen === "search") return <SearchScreen stories={stories} query={searchQuery} setQuery={setSearchQuery} openStory={openStory} go={navigate} coins={coins} />;
-    if (screen === "detail") return <DetailScreen story={selectedStory} liked={!!liked[selectedStory.id]} saved={!!saved[selectedStory.id]} followed={!!followed[selectedStory.id]} onLike={() => toggleLike(selectedStory)} onSave={() => toggleSave(selectedStory.id)} onFollow={() => toggleFollow(selectedStory)} openComments={() => navigate("comments")} openPlayer={openEpisode} go={navigate} coins={coins} />;
-    if (screen === "video") return <VideoScreen story={selectedStory} episode={currentEpisode} onBack={() => navigate("detail")} onNext={() => { if (currentEpisode < selectedStory.episodes) openEpisode(currentEpisode + 1); }} coins={coins} />;
-    if (screen === "comments") return <CommentsScreen comments={comments} text={commentText} setText={setCommentText} onSend={postComment} liked={commentLiked} onLike={likeComment} onBack={back} user={user} />;
-    if (screen === "coins") return <CoinsScreen packages={coinPackages} coins={coins} onBuy={buyCoins} onBack={back} loading={coinLoading} go={navigate} />;
-    if (screen === "rewards") return <RewardsScreen onBack={back} user={user} coins={coins} onWatchAd={watchRewardedAd} adReady={rewardedAdReady} adStatus={rewardedAdStatus} />;
+    if (screen === "detail") return <DetailScreen story={selectedStory} liked={!!liked[selectedStory.id]} saved={!!saved[selectedStory.id]} onLike={() => toggleLike(selectedStory)} onSave={() => toggleSave(selectedStory.id)} openComments={() => navigate("comments")} openPlayer={() => navigate("video")} go={navigate} coins={coins} />;
+    if (screen === "video") return <VideoScreen story={selectedStory} episode={currentEpisode} onBack={() => navigate("detail")} onNext={() => setCurrentEpisode((c) => c + 1)} />;
+    if (screen === "comments") return <CommentsScreen comments={comments} text={commentText} setText={setCommentText} onSend={postComment} liked={{}} onLike={() => {}} onBack={back} />;
+    if (screen === "coins") return <CoinsScreen packages={coinPackages} coins={coins} onBuy={(pkg: any) => Linking.openURL(pkg.url)} onBack={back} />;
     if (screen === "ai") return <AIScreen messages={aiMessages} input={aiInput} setInput={setAiInput} onSend={sendAI} loading={aiLoading} error={aiError} onBack={back} />;
-    if (screen === "register") return <RegisterScreen onBack={back} onSubmit={register} onLogin={() => loginAccount()} mode={authMode} setMode={setAuthMode} username={regUsername} setUsername={setRegUsername} email={regEmail} setEmail={setRegEmail} password={regPassword} setPassword={setRegPassword} loading={authLoading} />;
-    if (screen === "creator") return <CreatorScreen story={selectedStory} following={creatorFollowing} onToggleFollow={() => setCreatorFollowing((v) => !v)} onBack={back} go={navigate} />;
-    if (screen === "create") return <CreateScreen title={newStoryTitle} setTitle={setNewStoryTitle} description={newStoryDescription} setDescription={setNewStoryDescription} genre={newStoryGenre} setGenre={setNewStoryGenre} onPublish={publishStory} onBack={back} loading={createLoading} user={user} />;
-    if (screen === "settings") return <SettingsScreen autoPlay={autoPlay} setAutoPlay={setAutoPlay} autoUnlock={autoUnlock} setAutoUnlock={setAutoUnlock} notifications={notificationsEnabled} setNotifications={setNotificationsEnabled} onBack={back} go={navigate} />;
-    if (screen === "premium") return <PremiumScreen onBack={back} />;
-    if (screen === "community") return <CommunityScreen go={navigate} stories={stories} />;
-    if (screen === "downloads") return <DownloadsScreen stories={stories} downloaded={downloaded} openStory={openStory} onBack={back} />;
-    if (screen === "notifications") return <NotificationsScreen onBack={back} />;
+    if (screen === "register") return <RegisterScreen onBack={back} onSubmit={register} mode={authMode} setMode={setAuthMode} username={regUsername} setUsername={setRegUsername} email={regEmail} setEmail={setRegEmail} password={regPassword} setPassword={setRegPassword} loading={authLoading} />;
+    if (screen === "create") return <CreateScreen title={newStoryTitle} setTitle={setNewStoryTitle} description={newStoryDescription} setDescription={setNewStoryDescription} onPublish={publishStory} onBack={back} loading={createLoading} user={user} />;
     return <HomeScreen stories={stories} openStory={openStory} go={navigate} coins={coins} serverOnline={serverOnline} />;
   })();
 
@@ -1313,27 +786,14 @@ const styles = StyleSheet.create({
   secondaryButtonText: { color: "#fff", fontWeight: "800" },
   sectionTitle: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 20, marginBottom: 12 },
   sectionTitleText: { color: "#fff", fontSize: 20, fontWeight: "900" },
-  storyCard: { width: Math.min(190, width * 0.46), height: 260, borderRadius: 18, overflow: "hidden", backgroundColor: "#151515", marginRight: 12 },
-  storyGradient: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.42)" },
-  storyCardText: { position: "absolute", left: 14, right: 14, bottom: 14 },
-  storyGenre: { color: "#bbb", fontSize: 10, fontWeight: "900", letterSpacing: 1 },
-  storyTitle: { color: "#fff", fontSize: 18, fontWeight: "900", marginTop: 4 },
-  storyMeta: { color: "#ccc", fontSize: 11, marginTop: 5 },
   storyRow: { flexDirection: "row", alignItems: "center", backgroundColor: "#101010", borderRadius: 16, padding: 10, marginBottom: 10, borderWidth: 1, borderColor: "#181818" },
   rowInfo: { flex: 1, paddingHorizontal: 12 },
   rowTitle: { color: "#fff", fontSize: 16, fontWeight: "800", marginBottom: 5 },
   muted: { color: "#8c8c8c", fontSize: 12, lineHeight: 18 },
   mutedCenter: { color: "#8c8c8c", fontSize: 13, lineHeight: 20, textAlign: "center", maxWidth: 340 },
   chevron: { color: "#777", fontSize: 26, paddingHorizontal: 5 },
-  communityBanner: { backgroundColor: "#111", borderWidth: 1, borderColor: "#222", borderRadius: 17, padding: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 },
-  communityTitle: { color: "#fff", fontSize: 16, fontWeight: "900", marginBottom: 4 },
-  pageTitle: { color: "#fff", fontSize: 28, fontWeight: "900", marginBottom: 7 },
-  emptyState: { flex: 1, alignItems: "center", justifyContent: "center", padding: 30 },
-  emptyIcon: { fontSize: 50, marginBottom: 10 },
-  emptyTitle: { color: "#fff", fontSize: 20, fontWeight: "900", marginBottom: 7 },
   profileHero: { alignItems: "center", paddingVertical: 22 },
   avatar: { width: 88, height: 88, borderRadius: 44, backgroundColor: "#1d1d1d", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#333", marginBottom: 10 },
-  creatorAvatar: { width: 94, height: 94, borderRadius: 47, backgroundColor: "#1d1d1d", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#333", marginBottom: 10 },
   avatarText: { color: "#fff", fontSize: 34, fontWeight: "900" },
   profileName: { color: "#fff", fontSize: 21, fontWeight: "900", marginBottom: 4 },
   profileGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginVertical: 15 },
@@ -1373,8 +833,6 @@ const styles = StyleSheet.create({
   packageCoins: { color: "#fff", fontSize: 17, fontWeight: "900", marginBottom: 3 },
   buyButton: { minWidth: 72, minHeight: 40, borderRadius: 20, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
   buyButtonText: { color: "#050505", fontWeight: "900" },
-  rewards: { flex: 1, alignItems: "center", justifyContent: "center", padding: 25 },
-  rewardIcon: { fontSize: 70, marginBottom: 18 },
   aiList: { padding: 15, paddingBottom: 10 },
   aiBubble: { maxWidth: "88%", borderRadius: 18, padding: 13, marginBottom: 10 },
   aiUser: { alignSelf: "flex-end", backgroundColor: "#202020" },
@@ -1388,11 +846,7 @@ const styles = StyleSheet.create({
   fieldLabel: { color: "#ddd", fontWeight: "800", marginTop: 18, marginBottom: 7 },
   formInput: { minHeight: 48, borderRadius: 14, backgroundColor: "#151515", borderWidth: 1, borderColor: "#252525", color: "#fff", paddingHorizontal: 14, paddingVertical: 12 },
   largeInput: { minHeight: 140, textAlignVertical: "top" },
-  creatorAvatarSmall: { width: 45, height: 45, borderRadius: 23, backgroundColor: "#1d1d1d", alignItems: "center", justifyContent: "center", marginRight: 12 },
-  communityCard: { flexDirection: "row", alignItems: "center", backgroundColor: "#111", borderRadius: 16, padding: 12, marginTop: 10 },
-  settingRow: { minHeight: 62, flexDirection: "row", alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#181818" },
   settingTitle: { color: "#fff", fontWeight: "800", fontSize: 15 },
-  premium: { flex: 1, alignItems: "center", justifyContent: "center", padding: 25 },
-  premiumIcon: { color: "#fff", fontSize: 60, marginBottom: 15 },
+  settingsLink: { minHeight: 62, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: "#181818" },
 });
 
