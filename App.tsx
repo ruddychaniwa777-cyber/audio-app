@@ -36,9 +36,7 @@ import {
   type LevelPlayReward,
 } from "unity-levelplay-mediation";
 import { useVideoPlayer, VideoView } from "expo-video";
-const API_URL =
-  process.env.EXPO_PUBLIC_API_URL?.trim() ||
-  "http://16.170.245.45:3000";
+const API_URL = "http://16.170.245.45:3000";
 
 // PUBLIC LevelPlay configuration. These are identifiers, not server secrets.
 // Replace both placeholders with the values from your LevelPlay dashboard.
@@ -912,7 +910,6 @@ function AudioScreen({
   const player = useAudioPlayer(source, {
     updateInterval: 500,
     downloadFirst: false,
-    preferredForwardBufferDuration: 15,
   });
   const status = useAudioPlayerStatus(player);
 
@@ -1614,25 +1611,39 @@ export default function App() {
   const [creatorFollowing, setCreatorFollowing] = useState(false);
 
   useEffect(() => {
-    let mounted = true;
+  let mounted = true;
 
-    const checkServer = async () => {
-      try {
-        const response = await fetch(`${API_URL}/api/health`);
-        if (!mounted) return;
-        setServerOnline(response.ok);
-      } catch {
-        if (mounted) setServerOnline(false);
+  const checkServer = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/health`);
+      const text = await response.text();
+
+      console.log("POCKET RIVALS API STATUS:", response.status);
+      console.log("POCKET RIVALS API RESPONSE:", text);
+
+      if (!mounted) return;
+
+      setServerOnline(response.ok);
+    } catch (error: any) {
+      const message = error?.message || String(error);
+
+      console.log("POCKET RIVALS API ERROR:", message);
+
+      if (mounted) {
+        setServerOnline(false);
       }
-    };
+    }
+  };
 
-    checkServer();
-    const timer = setInterval(checkServer, 15000);
-    return () => {
-      mounted = false;
-      clearInterval(timer);
-    };
-  }, []);
+  checkServer();
+
+  const timer = setInterval(checkServer, 15000);
+
+  return () => {
+    mounted = false;
+    clearInterval(timer);
+  };
+}, []);
 
   useEffect(() => {
     let mounted = true;
