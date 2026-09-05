@@ -6,6 +6,7 @@
     "icon": "./assets/icon.png",
     "android": {
       "package": "com.ruddychaniwa777.pocketrivals",
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#FFFFFF"
@@ -30,3 +31,4 @@
     ]
   }
 }
+
