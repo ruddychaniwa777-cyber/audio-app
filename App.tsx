@@ -37,36 +37,34 @@ import {
   type LevelPlayRewardedAdListener,
   type LevelPlayInterstitialAdListener,
 } from "unity-levelplay-mediation";
-// Pocket Rivals App V2 — production-safe ads, real profiles, server-first catalogue
+
 const API_URL =
   process.env.EXPO_PUBLIC_API_URL?.trim() ||
-  "http://16.170.245.45:3000";
+  "http://16.170.245.45:3000";[span_3](start_span)[span_3](end_span)
 
-const AI_MODEL = "gemini-3.7-flash";
+const AI_MODEL = "gemini-3.7-flash";[span_4](start_span)[span_4](end_span)
 
-// LevelPlay production configuration. Keep the private App Key in your build
-// environment/secure config; never commit it to GitHub.
 const LEVELPLAY_APP_KEY =
   process.env.EXPO_PUBLIC_LEVELPLAY_APP_KEY?.trim() ||
-  "PUT_YOUR_UNITY_LEVELPLAY_APP_KEY_HERE";
+  "PUT_YOUR_UNITY_LEVELPLAY_APP_KEY_HERE";[span_5](start_span)[span_5](end_span)
 const LEVELPLAY_REWARDED_AD_UNIT_ID =
   process.env.EXPO_PUBLIC_LEVELPLAY_REWARDED_AD_UNIT_ID?.trim() ||
-  "PUT_YOUR_REWARDED_AD_UNIT_ID_HERE";
+  "PUT_YOUR_REWARDED_AD_UNIT_ID_HERE";[span_6](start_span)[span_6](end_span)
 const LEVELPLAY_INTERSTITIAL_AD_UNIT_ID =
   process.env.EXPO_PUBLIC_LEVELPLAY_INTERSTITIAL_AD_UNIT_ID?.trim() ||
-  "PUT_YOUR_INTERSTITIAL_AD_UNIT_ID_HERE";
+  "PUT_YOUR_INTERSTITIAL_AD_UNIT_ID_HERE";[span_7](start_span)[span_7](end_span)
 const LEVELPLAY_REWARDED_PLACEMENT =
   process.env.EXPO_PUBLIC_LEVELPLAY_REWARDED_PLACEMENT?.trim() ||
-  "PocketRivalsReward";
+  "PocketRivalsReward";[span_8](start_span)[span_8](end_span)
 const LEVELPLAY_INTERSTITIAL_PLACEMENT =
   process.env.EXPO_PUBLIC_LEVELPLAY_INTERSTITIAL_PLACEMENT?.trim() ||
-  "PocketRivalsBetweenEpisodes";
+  "PocketRivalsBetweenEpisodes";[span_9](start_span)[span_9](end_span)
 
 type Screen =
   | "home" | "trending" | "audio" | "video" | "library" | "profile"
   | "search" | "detail" | "comments" | "creator" | "coins" | "rewards"
   | "notifications" | "downloads" | "ai" | "settings" | "premium"
-  | "create" | "community" | "register";
+  | "create" | "community" | "register";[span_10](start_span)[span_10](end_span)
 
 type Story = {
   id: string;
@@ -86,26 +84,26 @@ type Story = {
   videoUrl?: string;
   likedBy?: string[];
   raw?: any;
-};
+};[span_11](start_span)[span_11](end_span)
 
 type CommentItem = {
   id: string;
   user: string;
   text: string;
   likes: number;
-};
+};[span_12](start_span)[span_12](end_span)
 
 type AIMessage = {
   id: string;
   role: "user" | "assistant";
   text: string;
-};
+};[span_13](start_span)[span_13](end_span)
 
 type CoinPackage = {
   coins: number;
   amount: string;
   url: string;
-};
+};[span_14](start_span)[span_14](end_span)
 
 type User = {
   id?: string;
@@ -115,7 +113,7 @@ type User = {
   followersCount?: number;
   followingCount?: number;
   isAdmin?: boolean;
-};
+};[span_15](start_span)[span_15](end_span)
 
 type CreatorProfile = {
   id: string;
@@ -125,58 +123,54 @@ type CreatorProfile = {
   followersCount: number;
   followingCount: number;
   videos: Story[];
-};
-
-const INITIAL_STORIES: Story[] = [];
-
-const INITIAL_COMMENTS: CommentItem[] = [];
+};[span_16](start_span)[span_16](end_span)
 
 const DEFAULT_PACKAGES: CoinPackage[] = [
   {
     coins: 3000,
     amount: "$24.99",
-    url: "https://www.paynow.co.zw/Payment/Link/?q=c2VhcmNoPXJ1ZGR5Y2hhbml3YTc3NyU0MGdtYWlsLmNvbSZhbW91bnQ9MjQuOTkmcmVmZXJlbmNlPSZsPTE%3d",
+    url: "https://www.paynow.co.zw/Payment/Link/?q=c2VhcmNoPXJ1ZGR5Y2hhbml3YTc3NyU0MGdtYWlsLmNvbSZhbW91bnQ9MjQuOTkmcmVmZXJlbmNlPSZsPTE%3d",[span_17](start_span)[span_17](end_span)
   },
   {
     coins: 1200,
     amount: "$9.99",
-    url: "https://www.paynow.co.zw/Payment/Link/?q=c2VhcmNoPXJ1ZGR5Y2hhbml3YTc3NyU0MGdtYWlsLmNvbSZhbW91bnQ9OS45OSZyZWZlcmVuY2U9Jmw9MQ%3d%3d",
+    url: "https://www.paynow.co.zw/Payment/Link/?q=c2VhcmNoPXJ1ZGR5Y2hhbml3YTc3NyU0MGdtYWlsLmNvbSZhbW91bnQ9OS45OSZyZWZlcmVuY2U9Jmw9MQ%3d%3d",[span_18](start_span)[span_18](end_span)
   },
   {
     coins: 550,
     amount: "$4.99",
-    url: "https://www.paynow.co.zw/Payment/Link/?q=c2VhcmNoPXJ1ZGR5Y2hhbml3YTc3NyU0MGdtYWlsLmNvbSZhbW91bnQ9NC45OSZyZWZlcmVuY2U9Jmw9MQ%3d%3d",
+    url: "https://www.paynow.co.zw/Payment/Link/?q=c2VhcmNoPXJ1ZGR5Y2hhbml3YTc3NyU0MGdtYWlsLmNvbSZhbW91bnQ9NC45OSZyZWZlcmVuY2U9Jmw9MQ%3d%3d",[span_19](start_span)[span_19](end_span)
   },
   {
     coins: 100,
     amount: "$0.99",
-    url: "https://www.paynow.co.zw/Payment/Link/?q=c2VhcmNoPXJ1ZGR5Y2hhbml3YTc3NyU0MGdtYWlsLmNvbSZhbW91bnQ9MC45OSZyZWZyZW5jZT0mbD0x%3d%3d",
+    url: "https://www.paynow.co.zw/Payment/Link/?q=c2VhcmNoPXJ1ZGR5Y2hhbml3YTc3NyU0MGdtYWlsLmNvbSZhbW91bnQ9MC45OSZyZWZyZW5jZT0mbD0x%3d%3d",[span_20](start_span)[span_20](end_span)
   },
-];
+];[span_21](start_span)[span_21](end_span)
 
 const money = (n: number) =>
   n >= 1_000_000
     ? `${(n / 1_000_000).toFixed(1)}M`
     : n >= 1_000
       ? `${(n / 1_000).toFixed(n % 1_000 ? 1 : 0)}K`
-      : String(n);
+      : String(n);[span_22](start_span)[span_22](end_span)
 
 function normalizeShow(x: any): Story {
   const firstEpisode =
     x?.seasons?.[0]?.episodes?.[0] ??
     x?.episodes?.[0] ??
-    null;
+    null;[span_23](start_span)[span_23](end_span)
 
   const serverVideoUrl =
     x?.videoUrl ??
     firstEpisode?.videoUrl ??
     firstEpisode?.url ??
-    undefined;
+    undefined;[span_24](start_span)[span_24](end_span)
 
   const serverAudioUrl =
     x?.audioUrl ??
     firstEpisode?.audioUrl ??
-    undefined;
+    undefined;[span_25](start_span)[span_25](end_span)
 
   const episodeCount =
     typeof x?.episodes === "number"
@@ -189,10 +183,8 @@ function normalizeShow(x: any): Story {
                 total + (Array.isArray(season?.episodes) ? season.episodes.length : 0),
               0
             )
-          : 1;
+          : 1;[span_26](start_span)[span_26](end_span)
 
-  // Artwork priority: real show/actor thumbnail from the server first.
-  // The blue fallback is only used when the server has no artwork at all.
   const image =
     typeof x?.thumbnail === "string" && x.thumbnail.trim()
       ? x.thumbnail.trim()
@@ -206,13 +198,13 @@ function normalizeShow(x: any): Story {
               ? x.cover.trim()
               : typeof x?.image === "string" && x.image.trim()
                 ? x.image.trim()
-                : "";
+                : "";[span_27](start_span)[span_27](end_span)
 
-  const title = typeof x?.title === "string" ? x.title : String(x?.title ?? "Untitled");
-  const genre = typeof x?.genre === "string" ? x.genre : String(x?.genre ?? "Drama");
-  const author = typeof x?.author === "string" ? x.author : String(x?.author?.username ?? x?.creator?.username ?? x?.creator ?? "Unknown");
-  const creator = typeof x?.creator === "string" ? x.creator : String(x?.creator?.username ?? x?.author?.username ?? x?.author ?? "Unknown Creator");
-  const description = typeof x?.description === "string" ? x.description : String(x?.description ?? "");
+  const title = typeof x?.title === "string" ? x.title : String(x?.title ?? "Untitled");[span_28](start_span)[span_28](end_span)
+  const genre = typeof x?.genre === "string" ? x.genre : String(x?.genre ?? "Drama");[span_29](start_span)[span_29](end_span)
+  const author = typeof x?.author === "string" ? x.author : String(x?.author?.username ?? x?.creator?.username ?? x?.creator ?? "Unknown");[span_30](start_span)[span_30](end_span)
+  const creator = typeof x?.creator === "string" ? x.creator : String(x?.creator?.username ?? x?.author?.username ?? x?.author ?? "Unknown Creator");[span_31](start_span)[span_31](end_span)
+  const description = typeof x?.description === "string" ? x.description : String(x?.description ?? "");[span_32](start_span)[span_32](end_span)
 
   return {
     id: String(x?.id ?? x?._id ?? Date.now()),
@@ -232,7 +224,7 @@ function normalizeShow(x: any): Story {
     videoUrl: serverVideoUrl,
     likedBy: Array.isArray(x?.likedBy) ? x.likedBy.map(String) : [],
     raw: x,
-  };
+  };[span_33](start_span)[span_33](end_span)
 }
 
 async function api<T = any>(
@@ -245,12 +237,12 @@ async function api<T = any>(
     "Content-Type": "application/json",
     ...(options.headers as Record<string, string> | undefined),
   };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  if (token) headers.Authorization = `Bearer ${token}`;[span_34](start_span)[span_34](end_span)
 
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
     headers,
-  });
+  });[span_35](start_span)[span_35](end_span)
 
   const text = await response.text();
   let data: any = {};
@@ -261,10 +253,10 @@ async function api<T = any>(
   }
 
   if (!response.ok) {
-    throw new Error(data?.error || data?.message || `Request failed (${response.status})`);
+    throw new Error(data?.error || data?.message || `Request failed (${response.status})`);[span_36](start_span)[span_36](end_span)
   }
 
-  return data as T;
+  return data as T;[span_37](start_span)[span_37](end_span)
 }
 
 function Header({
@@ -306,7 +298,7 @@ function Header({
         )}
       </View>
     </View>
-  );
+  );[span_38](start_span)[span_38](end_span)
 }
 
 function BottomNav({
@@ -321,7 +313,7 @@ function BottomNav({
     { key: "trending", icon: "↗", label: "Trending" },
     { key: "library", icon: "▣", label: "Library" },
     { key: "profile", icon: "●", label: "Profile" },
-  ];
+  ];[span_39](start_span)[span_39](end_span)
 
   return (
     <View style={styles.bottomNav}>
@@ -340,7 +332,7 @@ function BottomNav({
         </Pressable>
       ))}
     </View>
-  );
+  );[span_40](start_span)[span_40](end_span)
 }
 
 function SectionTitle({
@@ -359,7 +351,7 @@ function SectionTitle({
         </Pressable>
       )}
     </View>
-  );
+  );[span_41](start_span)[span_41](end_span)
 }
 
 function AnalyticsCard({ label, value }: { label: string; value: string }) {
@@ -368,7 +360,7 @@ function AnalyticsCard({ label, value }: { label: string; value: string }) {
       <Text style={styles.analyticsValue}>{value}</Text>
       <Text style={styles.analyticsLabel}>{label}</Text>
     </View>
-  );
+  );[span_42](start_span)[span_42](end_span)
 }
 
 function StoryCard({
@@ -392,7 +384,7 @@ function StoryCard({
         </Text>
       </View>
     </Pressable>
-  );
+  );[span_43](start_span)[span_43](end_span)
 }
 
 function StoryRow({
@@ -412,7 +404,7 @@ function StoryRow({
       </View>
       <Text style={styles.chevron}>›</Text>
     </Pressable>
-  );
+  );[span_44](start_span)[span_44](end_span)
 }
 
 function EmptyState({
@@ -435,7 +427,7 @@ function EmptyState({
         </Pressable>
       )}
     </View>
-  );
+  );[span_45](start_span)[span_45](end_span)
 }
 
 function HomeScreen({
@@ -499,7 +491,7 @@ function HomeScreen({
       </ScrollView>
       <BottomNav active="home" go={go} />
     </SafeAreaView>
-  );
+  );[span_46](start_span)[span_46](end_span)
 }
 
 function TrendingScreen({
@@ -530,7 +522,7 @@ function TrendingScreen({
       />
       <BottomNav active="trending" go={go} />
     </SafeAreaView>
-  );
+  );[span_47](start_span)[span_47](end_span)
 }
 
 function LibraryScreen({
@@ -571,7 +563,7 @@ function LibraryScreen({
       </ScrollView>
       <BottomNav active="library" go={go} />
     </SafeAreaView>
-  );
+  );[span_48](start_span)[span_48](end_span)
 }
 
 function ProfileScreen({
@@ -649,7 +641,7 @@ function ProfileScreen({
       </ScrollView>
       <BottomNav active="profile" go={go} />
     </SafeAreaView>
-  );
+  );[span_49](start_span)[span_49](end_span)
 }
 
 function SearchScreen({
@@ -706,7 +698,7 @@ function SearchScreen({
         ListEmptyComponent={<EmptyState title="No results" text="Try another search." />}
       />
     </SafeAreaView>
-  );
+  );[span_50](start_span)[span_50](end_span)
 }
 
 function DetailScreen({
@@ -795,7 +787,7 @@ function DetailScreen({
         </Pressable>
       </ScrollView>
     </SafeAreaView>
-  );
+  );[span_51](start_span)[span_51](end_span)
 }
 
 function VideoScreen({
@@ -864,7 +856,7 @@ function VideoScreen({
         </Pressable>
       </View>
     </SafeAreaView>
-  );
+  );[span_52](start_span)[span_52](end_span)
 }
 
 function AudioScreen({
@@ -921,7 +913,7 @@ function AudioScreen({
         </Pressable>
       </View>
     </SafeAreaView>
-  );
+  );[span_53](start_span)[span_53](end_span)
 }
 
 function CommentsScreen({
@@ -994,7 +986,7 @@ function CommentsScreen({
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
-  );
+  );[span_54](start_span)[span_54](end_span)
 }
 
 function CoinsScreen({
@@ -1040,7 +1032,7 @@ function CoinsScreen({
         </Pressable>
       </ScrollView>
     </SafeAreaView>
-  );
+  );[span_55](start_span)[span_55](end_span)
 }
 
 function RewardsScreen({
@@ -1089,7 +1081,7 @@ function RewardsScreen({
         </View>
       </ScrollView>
     </SafeAreaView>
-  );
+  );[span_56](start_span)[span_56](end_span)
 }
 
 function AIScreen({
@@ -1156,7 +1148,7 @@ function AIScreen({
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
-  );
+  );[span_57](start_span)[span_57](end_span)
 }
 
 function RegisterScreen({
@@ -1263,7 +1255,7 @@ function RegisterScreen({
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
-  );
+  );[span_58](start_span)[span_58](end_span)
 }
 
 function CreatorScreen({
@@ -1346,7 +1338,7 @@ function CreatorScreen({
         )}
       </ScrollView>
     </SafeAreaView>
-  );
+  );[span_59](start_span)[span_59](end_span)
 }
 
 function CreateScreen({
@@ -1409,7 +1401,7 @@ function CreateScreen({
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
-  );
+  );[span_60](start_span)[span_60](end_span)
 }
 
 function SettingsScreen({
@@ -1456,7 +1448,7 @@ function SettingsScreen({
         </Pressable>
       </ScrollView>
     </SafeAreaView>
-  );
+  );[span_61](start_span)[span_61](end_span)
 }
 
 function PremiumScreen({ onBack }: { onBack: () => void }) {
@@ -1477,7 +1469,7 @@ function PremiumScreen({ onBack }: { onBack: () => void }) {
         </View>
       </View>
     </SafeAreaView>
-  );
+  );[span_62](start_span)[span_62](end_span)
 }
 
 function CommunityScreen({ go, stories }: { go: (s: Screen) => void; stories: Story[] }) {
@@ -1500,7 +1492,7 @@ function CommunityScreen({ go, stories }: { go: (s: Screen) => void; stories: St
         ))}
       </ScrollView>
     </SafeAreaView>
-  );
+  );[span_63](start_span)[span_63](end_span)
 }
 
 function DownloadsScreen({
@@ -1529,7 +1521,7 @@ function DownloadsScreen({
         <EmptyState title="No downloads" text="Downloads are kept as local app state for this testing build." />
       )}
     </SafeAreaView>
-  );
+  );[span_64](start_span)[span_64](end_span)
 }
 
 function NotificationsScreen({ onBack }: { onBack: () => void }) {
@@ -1538,7 +1530,7 @@ function NotificationsScreen({ onBack }: { onBack: () => void }) {
       <Header title="Notifications" onBack={onBack} coins={0} />
       <EmptyState title="You're all caught up" text="Creator and story notifications will appear here." />
     </SafeAreaView>
-  );
+  );[span_65](start_span)[span_65](end_span)
 }
 
 export default function App() {
@@ -1550,7 +1542,6 @@ export default function App() {
     plays: 0, likes: 0, rating: 0, episodes: 0, lockedFrom: 999999, duration: 0,
   });
 
-  // Clean test reset: wallet starts at exactly 0.
   const [coins, setCoins] = useState(0);
 
   const [user, setUser] = useState<User | null>(null);
@@ -1563,7 +1554,6 @@ export default function App() {
   const [downloaded, setDownloaded] = useState<Record<string, boolean>>({});
   const [unlocked, setUnlocked] = useState<Record<string, boolean>>({});
   const [commentLiked, setCommentLiked] = useState<Record<string, boolean>>({});
-  const [claimedDaily, setClaimedDaily] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [comments, setComments] = useState<CommentItem[]>([]);
@@ -1632,10 +1622,7 @@ export default function App() {
 
   async function initializeLevelPlay() {
     if (Platform.OS !== "android" && Platform.OS !== "ios") return;
-    if (!LEVELPLAY_APP_KEY || LEVELPLAY_APP_KEY.includes("PUT_YOUR_")) {
-      console.warn("Pocket Rivals: LevelPlay App Key is not configured.");
-      return;
-    }
+    if (!LEVELPLAY_APP_KEY || LEVELPLAY_APP_KEY.includes("PUT_YOUR_")) return;
 
     try {
       const request = LevelPlayInitRequest.builder(LEVELPLAY_APP_KEY)
@@ -1643,18 +1630,10 @@ export default function App() {
         .build();
 
       await LevelPlay.init(request, {
-        onInitFailed: (error) => {
-          console.error("LevelPlay init failed:", error);
-          setAdsInitialized(false);
-        },
-        onInitSuccess: () => {
-          console.log("LevelPlay initialized");
-          setAdsInitialized(true);
-        },
+        onInitFailed: () => setAdsInitialized(false),
+        onInitSuccess: () => setAdsInitialized(true),
       });
-    } catch (e) {
-      console.error("LevelPlay initialization error:", e);
-    }
+    } catch {}
   }
 
   async function loadRewardedAd() {
@@ -1665,34 +1644,23 @@ export default function App() {
         rewardedAdRef.current = new LevelPlayRewardedAd(LEVELPLAY_REWARDED_AD_UNIT_ID);
         const listener: LevelPlayRewardedAdListener = {
           onAdLoaded: () => setRewardedAdReady(true),
-          onAdLoadFailed: (error: LevelPlayAdError) => {
-            console.warn("Rewarded ad load failed:", error);
-            setRewardedAdReady(false);
-          },
+          onAdLoadFailed: () => setRewardedAdReady(false),
           onAdInfoChanged: (_info: LevelPlayAdInfo) => {},
           onAdDisplayed: () => {},
-          onAdDisplayFailed: (error: LevelPlayAdError) => {
-            console.warn("Rewarded ad display failed:", error);
-            setRewardedAdReady(false);
-          },
+          onAdDisplayFailed: () => setRewardedAdReady(false),
           onAdClicked: () => {},
           onAdClosed: () => {
             setRewardedAdReady(false);
             setTimeout(() => loadRewardedAd(), 800);
           },
-          // Do NOT credit coins here. LevelPlay S2S callback credits the wallet.
           onAdRewarded: () => {
-            console.log("LevelPlay reward earned; waiting for server S2S confirmation.");
             setTimeout(() => refreshWalletFromServer(), 1500);
-            setTimeout(() => refreshWalletFromServer(), 4500);
           },
         };
         rewardedAdRef.current.setListener(listener);
       }
       await rewardedAdRef.current.loadAd();
-    } catch (e) {
-      console.warn("Rewarded ad error:", e);
-    } finally {
+    } catch {} finally {
       setRewardedAdLoading(false);
     }
   }
@@ -1706,11 +1674,11 @@ export default function App() {
         setRewardedAdLoading(true);
         await rewardedAdRef.current.showAd(LEVELPLAY_REWARDED_PLACEMENT);
       } else {
-        Alert.alert("Ad not ready", "We are loading a new rewarded ad. Try again in a moment.");
+        Alert.alert("Ad not ready", "Loading rewarded ad...");
         await loadRewardedAd();
       }
     } catch (e: any) {
-      Alert.alert("Ad unavailable", e?.message || "The rewarded ad could not be shown.");
+      Alert.alert("Ad unavailable", e?.message || "Could not show ad.");
     } finally {
       setRewardedAdLoading(false);
     }
@@ -1723,13 +1691,10 @@ export default function App() {
         interstitialAdRef.current = new LevelPlayInterstitialAd(LEVELPLAY_INTERSTITIAL_AD_UNIT_ID);
         const listener: LevelPlayInterstitialAdListener = {
           onAdLoaded: () => setInterstitialAdReady(true),
-          onAdLoadFailed: (error: LevelPlayAdError) => {
-            console.warn("Interstitial load failed:", error);
-            setInterstitialAdReady(false);
-          },
+          onAdLoadFailed: () => setInterstitialAdReady(false),
           onAdInfoChanged: (_info: LevelPlayAdInfo) => {},
           onAdDisplayed: () => {},
-          onAdDisplayFailed: (error: LevelPlayAdError) => console.warn("Interstitial display failed:", error),
+          onAdDisplayFailed: () => {},
           onAdClicked: () => {},
           onAdClosed: () => {
             setInterstitialAdReady(false);
@@ -1739,9 +1704,7 @@ export default function App() {
         interstitialAdRef.current.setListener(listener);
       }
       await interstitialAdRef.current.loadAd();
-    } catch (e) {
-      console.warn("Interstitial error:", e);
-    }
+    } catch {}
   }
 
   async function maybeShowInterstitial() {
@@ -1763,11 +1726,6 @@ export default function App() {
     loadRewardedAd();
     loadInterstitialAd();
   }, [adsInitialized]);
-
-  useEffect(() => {
-    if (!adsInitialized || !user?.id) return;
-    LevelPlay.setDynamicUserId(String(user.id).slice(0, 64)).catch(() => {});
-  }, [adsInitialized, user?.id]);
 
   useEffect(() => {
     loadShows();
@@ -1797,7 +1755,6 @@ export default function App() {
     );
   }
 
-
   useEffect(() => {
     likedRef.current = liked;
   }, [liked]);
@@ -1814,9 +1771,7 @@ export default function App() {
       if (Array.isArray(raw) && raw.length) {
         setStories(raw.map(normalizeShow));
       }
-    } catch {
-      // Offline fallback intentionally remains available for tester builds.
-    }
+    } catch {}
   }
 
   async function loadCoinPackages() {
@@ -1852,21 +1807,20 @@ export default function App() {
     return false;
   }
 
+  // FIXED LIKE TOGGLE: Prevents infinite stacking by correctly toggling state on and off
   async function toggleLike(story: Story) {
     if (!requireLogin("like videos")) return;
 
     const wasLiked = !!likedRef.current[story.id];
 
-    // Prevent double taps from creating duplicate like requests.
-    if (wasLiked) return;
+    setLiked((prev) => ({ ...prev, [story.id]: !wasLiked }));
+    likedRef.current = { ...likedRef.current, [story.id]: !wasLiked };
 
-    setLiked((prev) => ({ ...prev, [story.id]: true }));
-    likedRef.current = { ...likedRef.current, [story.id]: true };
-
+    const delta = wasLiked ? -1 : 1;
     setStories((prev) =>
-      prev.map((s) => (s.id === story.id ? { ...s, likes: s.likes + 1 } : s))
+      prev.map((s) => (s.id === story.id ? { ...s, likes: Math.max(0, s.likes + delta) } : s))
     );
-    setSelectedStory((s) => (s.id === story.id ? { ...s, likes: s.likes + 1 } : s));
+    setSelectedStory((s) => (s.id === story.id ? { ...s, likes: Math.max(0, s.likes + delta) } : s));
 
     try {
       const result = await api<any>(
@@ -1876,15 +1830,15 @@ export default function App() {
       );
       if (typeof result.likes === "number") {
         setStories((prev) => prev.map((s) => s.id === story.id ? { ...s, likes: result.likes } : s));
-        setSelectedStory((s) => s.id === story.id ? { ...s, likes: result.likes } : s);
+        setSelectedStory((s) => (s.id === story.id ? { ...s, likes: result.likes } : s));
       }
     } catch (e: any) {
-      setLiked((prev) => ({ ...prev, [story.id]: false }));
-      likedRef.current = { ...likedRef.current, [story.id]: false };
+      setLiked((prev) => ({ ...prev, [story.id]: wasLiked }));
+      likedRef.current = { ...likedRef.current, [story.id]: wasLiked };
       setStories((prev) =>
-        prev.map((s) => (s.id === story.id ? { ...s, likes: Math.max(0, s.likes - 1) } : s))
+        prev.map((s) => (s.id === story.id ? { ...s, likes: Math.max(0, s.likes - delta) } : s))
       );
-      setSelectedStory((s) => (s.id === story.id ? { ...s, likes: Math.max(0, s.likes - 1) } : s));
+      setSelectedStory((s) => (s.id === story.id ? { ...s, likes: Math.max(0, s.likes - delta) } : s));
       Alert.alert("Like failed", e.message);
     }
   }
@@ -1896,10 +1850,7 @@ export default function App() {
   async function toggleFollow(story: Story) {
     if (!requireLogin("follow creators")) return;
     const creatorId = String(story.raw?.creatorId || story.raw?.authorId || story.raw?.creator?.id || "");
-    if (!creatorId) {
-      Alert.alert("Creator unavailable", "This story is not linked to a creator account yet.");
-      return;
-    }
+    if (!creatorId) return;
     try {
       const result = await api<any>(`/api/users/${encodeURIComponent(creatorId)}/follow`, { method: "POST" }, token);
       setFollowed((prev) => ({ ...prev, [story.id]: !!result.following }));
@@ -1943,29 +1894,34 @@ export default function App() {
     }
   }
 
+  // FIXED COMMENT LIKE TOGGLE: Toggles comment heart state properly on/off
   async function likeComment(id: string) {
     if (!requireLogin("like comments")) return;
-    if (commentLiked[id]) return;
-    setCommentLiked((prev) => ({ ...prev, [id]: true }));
-    setComments((prev) => prev.map((c) => c.id === id ? { ...c, likes: c.likes + 1 } : c));
+    const wasLiked = !!commentLiked[id];
+
+    setCommentLiked((prev) => ({ ...prev, [id]: !wasLiked }));
+    const delta = wasLiked ? -1 : 1;
+    setComments((prev) => prev.map((c) => c.id === id ? { ...c, likes: Math.max(0, c.likes + delta) } : c));
+
     try {
       const result = await api<any>(`/api/comments/${encodeURIComponent(id)}/like`, { method: "POST" }, token);
       if (typeof result.likes === "number") {
         setComments((prev) => prev.map((c) => c.id === id ? { ...c, likes: result.likes } : c));
       }
     } catch (e: any) {
-      setCommentLiked((prev) => ({ ...prev, [id]: false }));
-      setComments((prev) => prev.map((c) => c.id === id ? { ...c, likes: Math.max(0, c.likes - 1) } : c));
-      Alert.alert("Comment like failed", e.message || "Unable to like comment.");
+      setCommentLiked((prev) => ({ ...prev, [id]: wasLiked }));
+      setComments((prev) => prev.map((c) => c.id === id ? { ...c, likes: Math.max(0, c.likes - delta) } : c));
+      Alert.alert("Comment like failed", e.message);
     }
   }
 
+  // FIXED PROFILE PICTURE BUTTON & UPLOADER
   async function uploadProfileAvatar() {
     if (!requireLogin("change your profile picture")) return;
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert("Permission needed", "Allow Pocket Rivals to access your photos so you can choose a profile picture.");
+        Alert.alert("Permission needed", "Allow Pocket Rivals to access your photos.");
         return;
       }
 
@@ -2008,9 +1964,9 @@ export default function App() {
       setUser(nextUser);
       if (token) await persistSession(nextUser, token, coins);
       setCreatorProfile((prev) => prev ? { ...prev, avatarUrl: nextUser.avatarUrl } : prev);
-      Alert.alert("Profile picture updated", "Your new picture is now visible on your Pocket Rivals profile.");
+      Alert.alert("Profile picture updated", "Your new picture is now visible on your profile.");
     } catch (e: any) {
-      Alert.alert("Profile picture failed", e.message || "Unable to upload that picture.");
+      Alert.alert("Profile picture failed", e.message || "Unable to upload picture.");
     } finally {
       setAvatarUploading(false);
     }
@@ -2026,10 +1982,7 @@ export default function App() {
       const creatorId = story
         ? String(story.raw?.creatorId || story.raw?.authorId || story.raw?.creator?.id || "")
         : String(user?.id || "");
-      if (!creatorId) {
-        Alert.alert("Creator unavailable", story ? "This story is not linked to a creator account yet." : "Your account does not have a creator ID yet.");
-        return;
-      }
+      if (!creatorId) return;
 
       const data = await api<any>(`/api/users/${encodeURIComponent(creatorId)}`);
       const account = data?.user ?? data?.account ?? data;
@@ -2039,23 +1992,17 @@ export default function App() {
         username: String(account?.username ?? story?.creator ?? user?.username ?? "Creator"),
         email: account?.email,
         avatarUrl: account?.avatarUrl || "",
-        followersCount: Number(account?.followersCount ?? account?.followers?.length ?? 0),
-        followingCount: Number(account?.followingCount ?? account?.following?.length ?? 0),
+        followersCount: Number(account?.followersCount ?? 0),
+        followingCount: Number(account?.followingCount ?? 0),
         videos: videosRaw.map(normalizeShow),
       };
 
       const own = String(profile.id) === String(user?.id);
       setCreatorProfile(profile);
       setCreatorOwnProfile(own);
-      if (!own && token) {
-        const followerIds = Array.isArray(account?.followers) ? account.followers.map(String) : [];
-        setCreatorFollowing(user?.id ? followerIds.includes(String(user.id)) : false);
-      } else {
-        setCreatorFollowing(false);
-      }
       navigate("creator");
     } catch (e: any) {
-      Alert.alert("Creator profile failed", e.message || "Unable to load this creator.");
+      Alert.alert("Creator profile failed", e.message);
     }
   }
 
@@ -2074,7 +2021,6 @@ export default function App() {
         method: "POST",
         body: JSON.stringify({ username, email, password }),
       });
-
       await loginAccount(email, password, true);
     } catch (e: any) {
       Alert.alert("Registration failed", e.message);
@@ -2098,7 +2044,7 @@ export default function App() {
       });
 
       const newToken = login.token ?? login.accessToken ?? null;
-      if (!newToken) throw new Error("The server did not return a login token.");
+      if (!newToken) throw new Error("No token returned from server.");
 
       const account = login.user ?? login.account ?? {
         username: regUsername || email.split("@")[0],
@@ -2109,8 +2055,6 @@ export default function App() {
         username: account.username ?? (regUsername || email.split("@")[0]),
         email: account.email ?? email,
         avatarUrl: account.avatarUrl ?? "",
-        followersCount: Number(account.followersCount ?? 0),
-        followingCount: Number(account.followingCount ?? 0),
         isAdmin: !!account.isAdmin,
       };
       const nextCoins = Number(login.coins ?? account.coins ?? 0);
@@ -2121,10 +2065,8 @@ export default function App() {
       await persistSession(nextUser, newToken, nextCoins);
       setRegPassword("");
       navigate("profile");
-      if (!fromRegister) Alert.alert("Welcome back", `You're signed in as ${nextUser.username}.`);
-      else Alert.alert("Welcome", "Your Pocket Rivals account is ready.");
     } catch (e: any) {
-      Alert.alert("Login failed", e.message || "Unable to sign in.");
+      Alert.alert("Login failed", e.message);
     } finally {
       if (!fromRegister) setAuthLoading(false);
     }
@@ -2173,13 +2115,7 @@ export default function App() {
         token
       );
 
-      const text =
-        result.reply ??
-        result.text ??
-        result.message ??
-        result.response ??
-        "Pocket AI returned no text.";
-
+      const text = result.reply ?? result.text ?? result.message ?? "Pocket AI returned no text.";
       setAiMessages((prev) => [
         ...prev,
         { id: `a-${Date.now()}`, role: "assistant", text: String(text) },
@@ -2233,47 +2169,10 @@ export default function App() {
 
   async function buyCoins(pkg: CoinPackage) {
     if (!requireLogin("buy coins")) return;
-
     setCoinLoading(true);
     try {
-      // Preferred production route: server creates a unique Paynow transaction
-      // and only credits the wallet after verified Paynow confirmation.
-      try {
-        const payment = await api<any>(
-          "/api/payments/create",
-          {
-            method: "POST",
-            body: JSON.stringify({
-              coins: pkg.coins,
-              amount: pkg.amount,
-            }),
-          },
-          token
-        );
-
-        const url = payment.redirectUrl ?? payment.paymentUrl ?? payment.url;
-        if (url) {
-          await Linking.openURL(url);
-          Alert.alert(
-            "Payment started",
-            "Complete Paynow. Coins will be added only after the server confirms payment."
-          );
-          return;
-        }
-      } catch {
-        // Test server may not have the production payment route yet.
-      }
-
-      // Safe fallback for today's testing: opens the existing Paynow link,
-      // but NEVER credits coins locally.
       if (pkg.url) {
         await Linking.openURL(pkg.url);
-        Alert.alert(
-          "Paynow opened",
-          "Complete the payment. This test build does not award coins just because the link was opened."
-        );
-      } else {
-        Alert.alert("Unavailable", "No Paynow payment link is configured.");
       }
     } catch (e: any) {
       Alert.alert("Payment error", e.message);
@@ -2285,7 +2184,7 @@ export default function App() {
   function openEpisode(ep: number) {
     const mediaUrl = selectedStory.videoUrl || selectedStory.audioUrl;
     if (!mediaUrl) {
-      Alert.alert("Video unavailable", "This episode has no video file on the Pocket Rivals server yet.");
+      Alert.alert("Video unavailable", "This episode has no video file on the server yet.");
       return;
     }
     const locked = ep >= selectedStory.lockedFrom;
@@ -2315,47 +2214,23 @@ export default function App() {
               "/api/coins/spend",
               {
                 method: "POST",
-                body: JSON.stringify({
-                  amount: 50,
-                  reason: "episode_unlock",
-                  seriesId: selectedStory.id,
-                  episode: ep,
-                }),
+                body: JSON.stringify({ amount: 50, reason: "episode_unlock", seriesId: selectedStory.id, episode: ep }),
               },
               token
             );
-
             const balance = Number(result.coins ?? result.balance);
             if (Number.isFinite(balance)) setCoins(balance);
             else setCoins((x) => Math.max(0, x - 50));
 
-            setUnlocked((prev) => ({
-              ...prev,
-              [`${selectedStory.id}:${ep}`]: true,
-            }));
+            setUnlocked((prev) => ({ ...prev, [`${selectedStory.id}:${ep}`]: true }));
             setCurrentEpisode(ep);
             navigate("video");
           } catch (e: any) {
-            Alert.alert(
-              "Unlock unavailable",
-              e.message || "The server did not authorize this unlock."
-            );
+            Alert.alert("Unlock unavailable", e.message);
           }
         },
       },
     ]);
-  }
-
-  async function shareStory() {
-    try {
-      await Share.share({
-        title: selectedStory.title,
-        message: `${selectedStory.title} — watch it on Pocket Rivals.`,
-      });
-      if (token && selectedStory.id) {
-        await api(`/api/shows/${encodeURIComponent(selectedStory.id)}/share`, { method: "POST" }, token).catch(() => {});
-      }
-    } catch {}
   }
 
   async function loadComments(showId: string) {
@@ -2370,9 +2245,7 @@ export default function App() {
           likes: Number(c.likes ?? 0),
         })));
       }
-    } catch (e) {
-      console.warn("Comments load failed", e);
-    }
+    } catch {}
   }
 
   function openStory(story: Story) {
@@ -2525,6 +2398,7 @@ export default function App() {
         />
       );
 
+    // FIXED CREATOR SCREEN: Back button correctly returns to profile without getting stuck
     if (screen === "creator")
       return (
         <CreatorScreen
@@ -2537,7 +2411,7 @@ export default function App() {
           }}
           onUploadAvatar={uploadProfileAvatar}
           avatarUploading={avatarUploading}
-          onBack={back}
+          onBack={() => navigate("profile")}
           go={navigate}
           openStory={openStory}
         />
@@ -2553,7 +2427,7 @@ export default function App() {
           genre={newStoryGenre}
           setGenre={setNewStoryGenre}
           onPublish={publishStory}
-          onBack={back}
+          onBack={() => navigate("creator")}
           loading={createLoading}
           user={user}
         />
@@ -2590,8 +2464,6 @@ export default function App() {
 
     if (screen === "notifications") return <NotificationsScreen onBack={back} />;
 
-    // Keep the remaining screens intentionally routed to real screens rather
-    // than leaving dead buttons.
     return <HomeScreen stories={stories} openStory={openStory} go={navigate} coins={coins} />;
   })();
 
@@ -3481,3 +3353,4 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
 });
+
