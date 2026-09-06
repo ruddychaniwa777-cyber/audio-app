@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ImagePicker from "expo-image-picker";
 import {
   ActivityIndicator,
-  BackHandler,
   Alert,
   Dimensions,
   FlatList,
@@ -37,12 +37,99 @@ import {
   type LevelPlayRewardedAdListener,
   type LevelPlayInterstitialAdListener,
 } from "unity-levelplay-mediation";
-// Pocket Rivals Master V3 — server-first video + artwork + production LevelPlay ads
+// Pocket Rivals App V2 — production-safe ads, real profiles, server-first catalogue
 const API_URL =
   process.env.EXPO_PUBLIC_API_URL?.trim() ||
   "http://16.170.245.45:3000";
 
-// Production app: catalogue and media come from the Pocket Rivals server.
+const AI_MODEL = "gemini-3.7-flash";
+
+// LevelPlay production configuration. Keep the private App Key in your build
+// environment/secure config; never commit it to GitHub.
+const LEVELPLAY_APP_KEY =
+  process.env.EXPO_PUBLIC_LEVELPLAY_APP_KEY?.trim() ||
+  "PUT_YOUR_UNITY_LEVELPLAY_APP_KEY_HERE";
+const LEVELPLAY_REWARDED_AD_UNIT_ID =
+  process.env.EXPO_PUBLIC_LEVELPLAY_REWARDED_AD_UNIT_ID?.trim() ||
+  "PUT_YOUR_REWARDED_AD_UNIT_ID_HERE";
+const LEVELPLAY_INTERSTITIAL_AD_UNIT_ID =
+  process.env.EXPO_PUBLIC_LEVELPLAY_INTERSTITIAL_AD_UNIT_ID?.trim() ||
+  "PUT_YOUR_INTERSTITIAL_AD_UNIT_ID_HERE";
+const LEVELPLAY_REWARDED_PLACEMENT =
+  process.env.EXPO_PUBLIC_LEVELPLAY_REWARDED_PLACEMENT?.trim() ||
+  "PocketRivalsReward";
+const LEVELPLAY_INTERSTITIAL_PLACEMENT =
+  process.env.EXPO_PUBLIC_LEVELPLAY_INTERSTITIAL_PLACEMENT?.trim() ||
+  "PocketRivalsBetweenEpisodes";
+
+type Screen =
+  | "home" | "trending" | "audio" | "video" | "library" | "profile"
+  | "search" | "detail" | "comments" | "creator" | "coins" | "rewards"
+  | "notifications" | "downloads" | "ai" | "settings" | "premium"
+  | "create" | "community" | "register";
+
+type Story = {
+  id: string;
+  title: string;
+  genre: string;
+  author: string;
+  creator: string;
+  description: string;
+  image: string;
+  plays: number;
+  likes: number;
+  rating: number;
+  episodes: number;
+  lockedFrom: number;
+  duration: number;
+  audioUrl?: string;
+  videoUrl?: string;
+  likedBy?: string[];
+  raw?: any;
+};
+
+type CommentItem = {
+  id: string;
+  user: string;
+  text: string;
+  likes: number;
+};
+
+type AIMessage = {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+};
+
+type CoinPackage = {
+  coins: number;
+  amount: string;
+  url: string;
+};
+
+type User = {
+  id?: string;
+  username: string;
+  email?: string;
+  avatarUrl?: string;
+  followersCount?: number;
+  followingCount?: number;
+  isAdmin?: boolean;
+};
+
+type CreatorProfile = {
+  id: string;
+  username: string;
+  email?: string;
+  avatarUrl?: string;
+  followersCount: number;
+  followingCount: number;
+  videos: Story[];
+};
+
+const INITIAL_STORIES: Story[] = [];
+
+const INITIAL_COMMENTS: CommentItem[] = [];
 
 const DEFAULT_PACKAGES: CoinPackage[] = [
   {
@@ -121,13 +208,19 @@ function normalizeShow(x: any): Story {
                 ? x.image.trim()
                 : "";
 
+  const title = typeof x?.title === "string" ? x.title : String(x?.title ?? "Untitled");
+  const genre = typeof x?.genre === "string" ? x.genre : String(x?.genre ?? "Drama");
+  const author = typeof x?.author === "string" ? x.author : String(x?.author?.username ?? x?.creator?.username ?? x?.creator ?? "Unknown");
+  const creator = typeof x?.creator === "string" ? x.creator : String(x?.creator?.username ?? x?.author?.username ?? x?.author ?? "Unknown Creator");
+  const description = typeof x?.description === "string" ? x.description : String(x?.description ?? "");
+
   return {
     id: String(x?.id ?? x?._id ?? Date.now()),
-    title: x?.title ?? "Untitled",
-    genre: x?.genre ?? "Drama",
-    author: x?.author ?? x?.creator ?? "Unknown",
-    creator: x?.creator ?? x?.author ?? "Unknown Creator",
-    description: x?.description ?? "",
+    title,
+    genre,
+    author,
+    creator,
+    description,
     image,
     plays: Number(x?.plays ?? x?.views ?? 0),
     likes: Number(x?.likes ?? 0),
@@ -287,7 +380,7 @@ function StoryCard({
 }) {
   return (
     <Pressable onPress={onPress} style={styles.storyCard}>
-      {story.image ? <Image source={{ uri: story.image }} style={styles.storyImage} /> : <View style={[styles.storyImage, { backgroundColor: "#111" }]} />}
+      <Image source={{ uri: story.image }} style={styles.storyImage} />
       <View style={styles.storyGradient} />
       <View style={styles.storyCardText}>
         <Text style={styles.storyGenre}>{story.genre.toUpperCase()}</Text>
@@ -311,7 +404,7 @@ function StoryRow({
 }) {
   return (
     <Pressable onPress={onPress} style={styles.storyRow}>
-      {story.image ? <Image source={{ uri: story.image }} style={styles.rowImage} /> : <View style={[styles.rowImage, { backgroundColor: "#111" }]} />}
+      <Image source={{ uri: story.image }} style={styles.rowImage} />
       <View style={styles.rowInfo}>
         <Text style={styles.rowTitle} numberOfLines={1}>{story.title}</Text>
         <Text style={styles.muted}>{story.genre} · {story.episodes} episodes</Text>
@@ -367,7 +460,7 @@ function HomeScreen({
       />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.hero}>
-          {featured?.image ? <Image source={{ uri: featured.image }} style={styles.heroImage} /> : <View style={styles.heroImage} />}
+          <Image source={{ uri: featured?.image || "" }} style={styles.heroImage} />
           <View style={styles.heroOverlay} />
           <View style={styles.heroContent}>
             <Text style={styles.heroEyebrow}>FEATURED ORIGINAL</Text>
@@ -486,11 +579,17 @@ function ProfileScreen({
   go,
   coins,
   logout,
+  onCreator,
+  onUploadAvatar,
+  avatarUploading,
 }: {
   user: User | null;
   go: (s: Screen) => void;
   coins: number;
   logout: () => void;
+  onCreator: () => void;
+  onUploadAvatar: () => void;
+  avatarUploading: boolean;
 }) {
   if (!user) {
     return (
@@ -512,10 +611,17 @@ function ProfileScreen({
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.profileHero}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{user.username.slice(0, 1).toUpperCase()}</Text>
+            {user.avatarUrl ? (
+              <Image source={{ uri: user.avatarUrl }} style={styles.avatarImage} />
+            ) : (
+              <Text style={styles.avatarText}>{String(user.username || "U").slice(0, 1).toUpperCase()}</Text>
+            )}
           </View>
           <Text style={styles.profileName}>@{user.username}</Text>
           <Text style={styles.muted}>{user.email || "Pocket Rivals member"}</Text>
+          <Pressable style={styles.secondaryButton} onPress={onUploadAvatar} disabled={avatarUploading}>
+            {avatarUploading ? <ActivityIndicator /> : <Text style={styles.secondaryButtonText}>{user.avatarUrl ? "Change profile picture" : "Add profile picture"}</Text>}
+          </Pressable>
         </View>
 
         <View style={styles.profileGrid}>
@@ -527,7 +633,7 @@ function ProfileScreen({
             <Text style={styles.tileIcon}>♢</Text>
             <Text style={styles.tileText}>Notifications</Text>
           </Pressable>
-          <Pressable style={styles.profileTile} onPress={() => go("creator")}>
+          <Pressable style={styles.profileTile} onPress={onCreator}>
             <Text style={styles.tileIcon}>✦</Text>
             <Text style={styles.tileText}>Creator</Text>
           </Pressable>
@@ -707,7 +813,7 @@ function VideoScreen({
   onCoins: () => void;
   coins: number;
 }) {
-  const source = story.videoUrl || "";
+  const source = story.videoUrl || null;
   const player = useVideoPlayer(source, (p) => {
     p.loop = false;
     p.staysActiveInBackground = false;
@@ -770,7 +876,7 @@ function AudioScreen({
   onBack: () => void;
   coins: number;
 }) {
-  const source = story.audioUrl || "";
+  const source = story.audioUrl || undefined;
   const player = useAudioPlayer(source, {
     updateInterval: 500,
     downloadFirst: false,
@@ -790,7 +896,7 @@ function AudioScreen({
     <SafeAreaView style={styles.safe}>
       <Header title="Audio" onBack={onBack} coins={coins} />
       <View style={styles.audioScreen}>
-        {story.image ? <Image source={{ uri: story.image }} style={styles.audioArtwork} /> : <View style={[styles.audioArtwork, { backgroundColor: "#111" }]} />}
+        <Image source={{ uri: story.image }} style={styles.audioArtwork} />
         <Text style={styles.audioTitle}>{story.title}</Text>
         <Text style={styles.muted}>Episode 1 · {story.author}</Text>
         <View style={styles.progressTrack}>
@@ -1161,54 +1267,83 @@ function RegisterScreen({
 }
 
 function CreatorScreen({
-  story,
+  profile,
+  ownProfile,
   following,
   onToggleFollow,
+  onUploadAvatar,
+  avatarUploading,
   onBack,
   go,
+  openStory,
 }: {
-  story: Story;
+  profile: CreatorProfile | null;
+  ownProfile: boolean;
   following: boolean;
   onToggleFollow: () => void;
+  onUploadAvatar: () => void;
+  avatarUploading: boolean;
   onBack: () => void;
   go: (s: Screen) => void;
+  openStory: (story: Story) => void;
 }) {
+  if (!profile) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <Header title="Creator" onBack={onBack} coins={0} />
+        <EmptyState title="Creator profile unavailable" text="Open your Creator page from Profile or open a creator from a story." />
+      </SafeAreaView>
+    );
+  }
+
+  const totalPlays = profile.videos.reduce((sum, video) => sum + Number(video.plays || 0), 0);
+  const totalLikes = profile.videos.reduce((sum, video) => sum + Number(video.likes || 0), 0);
+
   return (
     <SafeAreaView style={styles.safe}>
       <Header title="Creator" onBack={onBack} coins={0} />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.profileHero}>
           <View style={styles.creatorAvatar}>
-            <Text style={styles.avatarText}>{story.creator.slice(0, 1).toUpperCase()}</Text>
+            {profile.avatarUrl ? (
+              <Image source={{ uri: profile.avatarUrl }} style={styles.creatorAvatarImage} />
+            ) : (
+              <Text style={styles.avatarText}>{String(profile.username || "C").slice(0, 1).toUpperCase()}</Text>
+            )}
           </View>
-          <Text style={styles.profileName}>{story.creator}</Text>
-          <Text style={styles.muted}>Creator · {story.author}</Text>
-          <Pressable style={styles.primaryButton} onPress={onToggleFollow}>
-            <Text style={styles.primaryButtonText}>{following ? "Following" : "Follow creator"}</Text>
-          </Pressable>
-          <Pressable style={styles.secondaryButton} onPress={() => go("create")}>
-            <Text style={styles.secondaryButtonText}>Creator studio</Text>
-          </Pressable>
+          <Text style={styles.profileName}>{profile.username}</Text>
+          <Text style={styles.muted}>{ownProfile ? "Your creator profile" : `${profile.followersCount} followers`}</Text>
+
+          {ownProfile ? (
+            <>
+              <Pressable style={styles.secondaryButton} onPress={onUploadAvatar} disabled={avatarUploading}>
+                {avatarUploading ? <ActivityIndicator /> : <Text style={styles.secondaryButtonText}>{profile.avatarUrl ? "Change profile picture" : "Add profile picture"}</Text>}
+              </Pressable>
+              <Pressable style={styles.primaryButton} onPress={() => go("create")}>
+                <Text style={styles.primaryButtonText}>Creator studio</Text>
+              </Pressable>
+            </>
+          ) : (
+            <Pressable style={styles.primaryButton} onPress={onToggleFollow}>
+              <Text style={styles.primaryButtonText}>{following ? "Following" : "Follow creator"}</Text>
+            </Pressable>
+          )}
         </View>
 
         <SectionTitle title="Creator Analytics" />
         <View style={styles.analyticsGrid}>
-          <AnalyticsCard label="Total Plays" value={money(story.plays)} />
-          <AnalyticsCard label="Likes" value={money(story.likes)} />
-          <AnalyticsCard label="Growth" value="Live" />
-          <AnalyticsCard label="Estimated Earnings" value={`$${Number(story.raw?.estimatedEarnings ?? 0).toFixed(2)}`} />
+          <AnalyticsCard label="Total Plays" value={money(totalPlays)} />
+          <AnalyticsCard label="Likes" value={money(totalLikes)} />
+          <AnalyticsCard label="Followers" value={money(profile.followersCount)} />
+          <AnalyticsCard label="Videos" value={money(profile.videos.length)} />
         </View>
-        <Text style={[styles.muted, { marginBottom: 18 }]}>
-          Estimated earnings are shown separately from confirmed payouts. Actual creator payments will be based on server-side analytics and the creator payout rules.
-        </Text>
 
-        <SectionTitle title="Creator challenge" />
-        <View style={styles.challengeCard}>
-          <Text style={styles.challengeTitle}>Publish your best story</Text>
-          <Text style={styles.muted}>
-            Creator uploads are submitted to the server for review. No fake engagement is generated.
-          </Text>
-        </View>
+        <SectionTitle title="Shared videos" />
+        {profile.videos.length ? profile.videos.map((video) => (
+          <StoryRow key={video.id} story={video} onPress={() => openStory(video)} />
+        )) : (
+          <EmptyState title="No videos yet" text={ownProfile ? "Your published videos will appear here after the server accepts them." : "This creator has not published a video yet."} />
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -1355,7 +1490,7 @@ function CommunityScreen({ go, stories }: { go: (s: Screen) => void; stories: St
         {stories.map((s) => (
           <View key={s.id} style={styles.communityCard}>
             <View style={styles.creatorAvatarSmall}>
-              <Text>{s.creator.slice(0, 1).toUpperCase()}</Text>
+              <Text>{String(s.creator || "C").slice(0, 1).toUpperCase()}</Text>
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.settingTitle}>{s.creator}</Text>
@@ -1409,8 +1544,11 @@ function NotificationsScreen({ onBack }: { onBack: () => void }) {
 export default function App() {
   const [screen, setScreen] = useState<Screen>("home");
   const [previousScreen, setPreviousScreen] = useState<Screen>("home");
-  const [stories, setStories] = useState<Story[]>(INITIAL_STORIES);
-  const [selectedStory, setSelectedStory] = useState<Story>({ id: "", title: "", genre: "", author: "", creator: "", description: "", image: "", plays: 0, likes: 0, rating: 0, episodes: 0, lockedFrom: 999999, duration: 0 });
+  const [stories, setStories] = useState<Story[]>([]);
+  const [selectedStory, setSelectedStory] = useState<Story>({
+    id: "", title: "", genre: "", author: "", creator: "", description: "", image: "",
+    plays: 0, likes: 0, rating: 0, episodes: 0, lockedFrom: 999999, duration: 0,
+  });
 
   // Clean test reset: wallet starts at exactly 0.
   const [coins, setCoins] = useState(0);
@@ -1428,7 +1566,7 @@ export default function App() {
   const [claimedDaily, setClaimedDaily] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [comments, setComments] = useState<CommentItem[]>(INITIAL_COMMENTS);
+  const [comments, setComments] = useState<CommentItem[]>([]);
   const [commentText, setCommentText] = useState("");
   const [currentEpisode, setCurrentEpisode] = useState(1);
 
@@ -1470,6 +1608,9 @@ export default function App() {
   const [watchedEpisodes, setWatchedEpisodes] = useState(0);
 
   const [creatorFollowing, setCreatorFollowing] = useState(false);
+  const [creatorProfile, setCreatorProfile] = useState<CreatorProfile | null>(null);
+  const [creatorOwnProfile, setCreatorOwnProfile] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
 
   const navigate = (next: Screen, story?: Story) => {
     setPreviousScreen(screen);
@@ -1560,7 +1701,7 @@ export default function App() {
     if (!requireLogin("watch rewarded ads")) return;
     if (!rewardedAdRef.current) return;
     try {
-      await LevelPlay.setDynamicUserId(String(user?.id || user?.username || "guest").replace(/[^a-zA-Z0-9]/g, "").slice(0, 64));
+      await LevelPlay.setDynamicUserId(String(user?.id || user?.username || "guest").slice(0, 64));
       if (await rewardedAdRef.current.isAdReady()) {
         setRewardedAdLoading(true);
         await rewardedAdRef.current.showAd(LEVELPLAY_REWARDED_PLACEMENT);
@@ -1613,8 +1754,9 @@ export default function App() {
   }
 
   useEffect(() => {
+    if (screen !== "rewards" || adsInitialized) return;
     initializeLevelPlay();
-  }, []);
+  }, [screen, adsInitialized]);
 
   useEffect(() => {
     if (!adsInitialized) return;
@@ -1624,7 +1766,7 @@ export default function App() {
 
   useEffect(() => {
     if (!adsInitialized || !user?.id) return;
-    LevelPlay.setDynamicUserId(String(user.id).replace(/[^a-zA-Z0-9]/g, "").slice(0, 64)).catch(() => {});
+    LevelPlay.setDynamicUserId(String(user.id).slice(0, 64)).catch(() => {});
   }, [adsInitialized, user?.id]);
 
   useEffect(() => {
@@ -1665,32 +1807,15 @@ export default function App() {
     persistSession(user, token, coins).catch(() => undefined);
   }, [user, token, coins]);
 
-  useEffect(() => {
-    const handler = BackHandler.addEventListener("hardwareBackPress", () => {
-      if (screen === "home") return true;
-      back();
-      return true;
-    });
-    return () => handler.remove();
-  }, [screen, previousScreen]);
-
   async function loadShows() {
     try {
       const data = await api<any>("/api/shows");
       const raw = Array.isArray(data) ? data : data.shows;
-      if (Array.isArray(raw)) {
-        const normalized = raw.map(normalizeShow);
-        setStories(normalized);
-        await AsyncStorage.setItem("pocket_rivals_catalogue", JSON.stringify(normalized)).catch(() => undefined);
+      if (Array.isArray(raw) && raw.length) {
+        setStories(raw.map(normalizeShow));
       }
     } catch {
-      try {
-        const cached = await AsyncStorage.getItem("pocket_rivals_catalogue");
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed)) setStories(parsed);
-        }
-      } catch {}
+      // Offline fallback intentionally remains available for tester builds.
     }
   }
 
@@ -1744,11 +1869,15 @@ export default function App() {
     setSelectedStory((s) => (s.id === story.id ? { ...s, likes: s.likes + 1 } : s));
 
     try {
-      await api(
+      const result = await api<any>(
         `/api/shows/${encodeURIComponent(story.id)}/like`,
         { method: "POST" },
         token
       );
+      if (typeof result.likes === "number") {
+        setStories((prev) => prev.map((s) => s.id === story.id ? { ...s, likes: result.likes } : s));
+        setSelectedStory((s) => s.id === story.id ? { ...s, likes: result.likes } : s);
+      }
     } catch (e: any) {
       setLiked((prev) => ({ ...prev, [story.id]: false }));
       likedRef.current = { ...likedRef.current, [story.id]: false };
@@ -1766,7 +1895,7 @@ export default function App() {
 
   async function toggleFollow(story: Story) {
     if (!requireLogin("follow creators")) return;
-    const creatorId = String(story.raw?.creatorId || story.raw?.creator?.id || story.raw?.creatorId || story.raw?.authorId || "");
+    const creatorId = String(story.raw?.creatorId || story.raw?.authorId || story.raw?.creator?.id || "");
     if (!creatorId) {
       Alert.alert("Creator unavailable", "This story is not linked to a creator account yet.");
       return;
@@ -1796,18 +1925,18 @@ export default function App() {
     setCommentText("");
 
     try {
-      await api(
-        "/api/comments",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            seriesId: selectedStory.id,
-            user: user!.username,
-            text,
-          }),
-        },
+      const result = await api<any>(
+        `/api/shows/${encodeURIComponent(selectedStory.id)}/comments`,
+        { method: "POST", body: JSON.stringify({ text }) },
         token
       );
+      if (result?.comment) {
+        setComments((prev) => prev.filter((x) => x.id !== local.id));
+        setComments((prev) => [
+          { id: String(result.comment.id), user: String(result.comment.username ?? user!.username), text: String(result.comment.text ?? text), likes: Number(result.comment.likes ?? 0) },
+          ...prev,
+        ]);
+      }
     } catch (e: any) {
       setComments((prev) => prev.filter((x) => x.id !== local.id));
       Alert.alert("Comment failed", e.message);
@@ -1816,8 +1945,7 @@ export default function App() {
 
   async function likeComment(id: string) {
     if (!requireLogin("like comments")) return;
-    const wasLiked = !!commentLiked[id];
-    if (wasLiked) return;
+    if (commentLiked[id]) return;
     setCommentLiked((prev) => ({ ...prev, [id]: true }));
     setComments((prev) => prev.map((c) => c.id === id ? { ...c, likes: c.likes + 1 } : c));
     try {
@@ -1832,25 +1960,103 @@ export default function App() {
     }
   }
 
-  async function loadComments(showId: string) {
+  async function uploadProfileAvatar() {
+    if (!requireLogin("change your profile picture")) return;
     try {
-      const data = await api<any>(`/api/shows/${encodeURIComponent(showId)}/comments`);
-      const raw = Array.isArray(data) ? data : data.comments;
-      if (Array.isArray(raw)) {
-        setComments(raw.map((c: any) => ({
-          id: String(c.id ?? c._id),
-          user: String(c.username ?? c.user ?? "User"),
-          text: String(c.text ?? ""),
-          likes: Number(c.likes ?? 0),
-        })));
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert("Permission needed", "Allow Pocket Rivals to access your photos so you can choose a profile picture.");
+        return;
       }
-    } catch (e) {
-      console.warn("Comments load failed", e);
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.9,
+      });
+      if (result.canceled || !result.assets?.[0]?.uri) return;
+
+      const asset = result.assets[0];
+      const form = new FormData();
+      form.append("avatar", {
+        uri: asset.uri,
+        name: asset.fileName || `profile-${Date.now()}.jpg`,
+        type: asset.mimeType || "image/jpeg",
+      } as any);
+
+      setAvatarUploading(true);
+      const response = await fetch(`${API_URL}/api/profile/avatar`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: form,
+      });
+      const text = await response.text();
+      let data: any = {};
+      try { data = text ? JSON.parse(text) : {}; } catch { data = { message: text }; }
+      if (!response.ok) throw new Error(data?.message || `Upload failed (${response.status})`);
+
+      const nextAccount = data.user ?? data.account ?? user;
+      const nextUser: User = {
+        ...(user || { username: regUsername || "User" }),
+        ...nextAccount,
+        avatarUrl: String(data.avatarUrl ?? nextAccount?.avatarUrl ?? ""),
+      };
+      setUser(nextUser);
+      if (token) await persistSession(nextUser, token, coins);
+      setCreatorProfile((prev) => prev ? { ...prev, avatarUrl: nextUser.avatarUrl } : prev);
+      Alert.alert("Profile picture updated", "Your new picture is now visible on your Pocket Rivals profile.");
+    } catch (e: any) {
+      Alert.alert("Profile picture failed", e.message || "Unable to upload that picture.");
+    } finally {
+      setAvatarUploading(false);
     }
   }
 
-  async function reportShare(showId: string) {
-    try { await api(`/api/shows/${encodeURIComponent(showId)}/share`, { method: "POST" }, token); } catch {}
+  async function openCreatorProfile(story?: Story) {
+    if (!user && !story) {
+      requireLogin("open your creator profile");
+      return;
+    }
+
+    try {
+      const creatorId = story
+        ? String(story.raw?.creatorId || story.raw?.authorId || story.raw?.creator?.id || "")
+        : String(user?.id || "");
+      if (!creatorId) {
+        Alert.alert("Creator unavailable", story ? "This story is not linked to a creator account yet." : "Your account does not have a creator ID yet.");
+        return;
+      }
+
+      const data = await api<any>(`/api/users/${encodeURIComponent(creatorId)}`);
+      const account = data?.user ?? data?.account ?? data;
+      const videosRaw = Array.isArray(data?.videos) ? data.videos : [];
+      const profile: CreatorProfile = {
+        id: String(account?.id ?? creatorId),
+        username: String(account?.username ?? story?.creator ?? user?.username ?? "Creator"),
+        email: account?.email,
+        avatarUrl: account?.avatarUrl || "",
+        followersCount: Number(account?.followersCount ?? account?.followers?.length ?? 0),
+        followingCount: Number(account?.followingCount ?? account?.following?.length ?? 0),
+        videos: videosRaw.map(normalizeShow),
+      };
+
+      const own = String(profile.id) === String(user?.id);
+      setCreatorProfile(profile);
+      setCreatorOwnProfile(own);
+      if (!own && token) {
+        const followerIds = Array.isArray(account?.followers) ? account.followers.map(String) : [];
+        setCreatorFollowing(user?.id ? followerIds.includes(String(user.id)) : false);
+      } else {
+        setCreatorFollowing(false);
+      }
+      navigate("creator");
+    } catch (e: any) {
+      Alert.alert("Creator profile failed", e.message || "Unable to load this creator.");
+    }
   }
 
   async function register() {
@@ -1902,6 +2108,10 @@ export default function App() {
         id: account.id ?? account._id,
         username: account.username ?? (regUsername || email.split("@")[0]),
         email: account.email ?? email,
+        avatarUrl: account.avatarUrl ?? "",
+        followersCount: Number(account.followersCount ?? 0),
+        followingCount: Number(account.followingCount ?? 0),
+        isAdmin: !!account.isAdmin,
       };
       const nextCoins = Number(login.coins ?? account.coins ?? 0);
 
@@ -1956,6 +2166,7 @@ export default function App() {
             messages: nextMessages,
             app: "Pocket Rivals",
             assistantName: "Pocket AI",
+            model: AI_MODEL,
             shows: stories,
           }),
         },
@@ -1993,8 +2204,8 @@ export default function App() {
         genre: newStoryGenre.trim() || "Drama",
         author: user!.username,
         creator: user!.username,
-        status: "pending",
         creatorId: user!.id,
+        status: "pending",
       };
 
       const result = await api<any>(
@@ -2072,6 +2283,11 @@ export default function App() {
   }
 
   function openEpisode(ep: number) {
+    const mediaUrl = selectedStory.videoUrl || selectedStory.audioUrl;
+    if (!mediaUrl) {
+      Alert.alert("Video unavailable", "This episode has no video file on the Pocket Rivals server yet.");
+      return;
+    }
     const locked = ep >= selectedStory.lockedFrom;
     if (!locked || unlocked[`${selectedStory.id}:${ep}`]) {
       setCurrentEpisode(ep);
@@ -2136,8 +2352,27 @@ export default function App() {
         title: selectedStory.title,
         message: `${selectedStory.title} — watch it on Pocket Rivals.`,
       });
-      await reportShare(selectedStory.id);
+      if (token && selectedStory.id) {
+        await api(`/api/shows/${encodeURIComponent(selectedStory.id)}/share`, { method: "POST" }, token).catch(() => {});
+      }
     } catch {}
+  }
+
+  async function loadComments(showId: string) {
+    try {
+      const data = await api<any>(`/api/shows/${encodeURIComponent(showId)}/comments`);
+      const raw = Array.isArray(data) ? data : data.comments;
+      if (Array.isArray(raw)) {
+        setComments(raw.map((c: any) => ({
+          id: String(c.id ?? c._id),
+          user: String(c.username ?? c.user ?? "User"),
+          text: String(c.text ?? ""),
+          likes: Number(c.likes ?? 0),
+        })));
+      }
+    } catch (e) {
+      console.warn("Comments load failed", e);
+    }
   }
 
   function openStory(story: Story) {
@@ -2165,7 +2400,7 @@ export default function App() {
       );
 
     if (screen === "profile")
-      return <ProfileScreen user={user} go={navigate} coins={coins} logout={logout} />;
+      return <ProfileScreen user={user} go={navigate} coins={coins} logout={logout} onCreator={() => openCreatorProfile()} onUploadAvatar={uploadProfileAvatar} avatarUploading={avatarUploading} />;
 
     if (screen === "search")
       return (
@@ -2191,7 +2426,7 @@ export default function App() {
           onFollow={() => toggleFollow(selectedStory)}
           openComments={() => { loadComments(selectedStory.id); navigate("comments"); }}
           openPlayer={openEpisode}
-          openCreator={() => navigate("creator")}
+          openCreator={() => openCreatorProfile(selectedStory)}
           go={navigate}
           coins={coins}
         />
@@ -2293,14 +2528,18 @@ export default function App() {
     if (screen === "creator")
       return (
         <CreatorScreen
-          story={selectedStory}
+          profile={creatorProfile}
+          ownProfile={creatorOwnProfile}
           following={creatorFollowing}
           onToggleFollow={() => {
-            if (!requireLogin("follow creators")) return;
-            setCreatorFollowing((v) => !v);
+            if (!creatorProfile || creatorOwnProfile || !requireLogin("follow creators")) return;
+            toggleFollow({ ...selectedStory, raw: { ...(selectedStory.raw || {}), creatorId: creatorProfile.id } });
           }}
+          onUploadAvatar={uploadProfileAvatar}
+          avatarUploading={avatarUploading}
           onBack={back}
           go={navigate}
+          openStory={openStory}
         />
       );
 
@@ -2720,6 +2959,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#333",
     marginBottom: 10,
+  },
+  avatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 42,
+  },
+  creatorAvatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 42,
   },
   avatarText: {
     color: "#fff",
