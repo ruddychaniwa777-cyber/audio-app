@@ -6,7 +6,6 @@
     "icon": "./assets/icon.png",
     "android": {
       "package": "com.ruddychaniwa777.pocketrivals",
-      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#FFFFFF"
@@ -22,7 +21,6 @@
         "expo-build-properties",
         {
           "android": {
-            "kotlinVersion": "2.2.20",
             "compileSdkVersion": 35,
             "targetSdkVersion": 35
           }
@@ -31,4 +29,3 @@
     ]
   }
 }
-
