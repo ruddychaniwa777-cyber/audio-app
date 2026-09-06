@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   ActivityIndicator,
+  BackHandler,
   Alert,
   Dimensions,
   FlatList,
@@ -41,177 +42,7 @@ const API_URL =
   process.env.EXPO_PUBLIC_API_URL?.trim() ||
   "http://16.170.245.45:3000";
 
-const AUDIO_URL =
-  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
-
-const VIDEO_URL =
-  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
-
-const FALLBACK_IMAGE =
-  "https://images.unsplash.com/photo-1519608487953-e999c86e7455?w=900";
-
-// LevelPlay production configuration. Keep the private App Key in your build
-// environment/secure config; never commit it to GitHub.
-const LEVELPLAY_APP_KEY =
-  process.env.EXPO_PUBLIC_LEVELPLAY_APP_KEY?.trim() ||
-  "PUT_YOUR_UNITY_LEVELPLAY_APP_KEY_HERE";
-const LEVELPLAY_REWARDED_AD_UNIT_ID =
-  process.env.EXPO_PUBLIC_LEVELPLAY_REWARDED_AD_UNIT_ID?.trim() ||
-  "PUT_YOUR_REWARDED_AD_UNIT_ID_HERE";
-const LEVELPLAY_INTERSTITIAL_AD_UNIT_ID =
-  process.env.EXPO_PUBLIC_LEVELPLAY_INTERSTITIAL_AD_UNIT_ID?.trim() ||
-  "PUT_YOUR_INTERSTITIAL_AD_UNIT_ID_HERE";
-const LEVELPLAY_REWARDED_PLACEMENT =
-  process.env.EXPO_PUBLIC_LEVELPLAY_REWARDED_PLACEMENT?.trim() ||
-  "PocketRivalsReward";
-const LEVELPLAY_INTERSTITIAL_PLACEMENT =
-  process.env.EXPO_PUBLIC_LEVELPLAY_INTERSTITIAL_PLACEMENT?.trim() ||
-  "PocketRivalsBetweenEpisodes";
-
-type Screen =
-  | "home" | "trending" | "audio" | "video" | "library" | "profile"
-  | "search" | "detail" | "comments" | "creator" | "coins" | "rewards"
-  | "notifications" | "downloads" | "ai" | "settings" | "premium"
-  | "create" | "community" | "register";
-
-type Story = {
-  id: string;
-  title: string;
-  genre: string;
-  author: string;
-  creator: string;
-  description: string;
-  image: string;
-  plays: number;
-  likes: number;
-  rating: number;
-  episodes: number;
-  lockedFrom: number;
-  duration: number;
-  audioUrl?: string;
-  videoUrl?: string;
-  likedBy?: string[];
-  raw?: any;
-};
-
-type CommentItem = {
-  id: string;
-  user: string;
-  text: string;
-  likes: number;
-};
-
-type AIMessage = {
-  id: string;
-  role: "user" | "assistant";
-  text: string;
-};
-
-type CoinPackage = {
-  coins: number;
-  amount: string;
-  url: string;
-};
-
-type User = {
-  id?: string;
-  username: string;
-  email?: string;
-};
-
-const INITIAL_STORIES: Story[] = [
-  {
-    id: "1",
-    title: "The Billionaire's Secret",
-    genre: "Romance",
-    author: "Ruddy C",
-    creator: "Ruddy Studios",
-    description:
-      "A mysterious billionaire, a hidden past and one decision that changes everything.",
-    image: FALLBACK_IMAGE,
-    plays: 0,
-    likes: 0,
-    rating: 4.9,
-    episodes: 86,
-    lockedFrom: 6,
-    duration: 18,
-    videoUrl: VIDEO_URL,
-  },
-  {
-    id: "2",
-    title: "Dark City",
-    genre: "Thriller",
-    author: "J. Phoenix",
-    creator: "Nightfall Studios",
-    description:
-      "A city that never sleeps hides a secret nobody is supposed to discover.",
-    image: FALLBACK_IMAGE,
-    plays: 0,
-    likes: 0,
-    rating: 4.8,
-    episodes: 64,
-    lockedFrom: 5,
-    duration: 22,
-    videoUrl: VIDEO_URL,
-  },
-  {
-    id: "3",
-    title: "Last Survivor",
-    genre: "Apocalypse",
-    author: "M. Carter",
-    creator: "Red Moon",
-    description:
-      "One survivor. One empty city. One last chance to find the truth.",
-    image: FALLBACK_IMAGE,
-    plays: 0,
-    likes: 0,
-    rating: 4.7,
-    episodes: 72,
-    lockedFrom: 8,
-    duration: 20,
-    videoUrl: VIDEO_URL,
-  },
-  {
-    id: "4",
-    title: "The CEO's Daughter",
-    genre: "Drama",
-    author: "Luna Ray",
-    creator: "Rivals Originals",
-    description:
-      "Power, family and betrayal collide when the CEO's daughter returns home.",
-    image: FALLBACK_IMAGE,
-    plays: 0,
-    likes: 0,
-    rating: 4.8,
-    episodes: 91,
-    lockedFrom: 7,
-    duration: 16,
-    videoUrl: VIDEO_URL,
-  },
-  {
-    id: "5",
-    title: "Shadow Hunter",
-    genre: "Fantasy",
-    author: "D. Knight",
-    creator: "Infinity Audio",
-    description:
-      "A hunter discovers that the monsters he has been tracking may be protecting him.",
-    image: FALLBACK_IMAGE,
-    plays: 0,
-    likes: 0,
-    rating: 4.6,
-    episodes: 58,
-    lockedFrom: 4,
-    duration: 24,
-    videoUrl: VIDEO_URL,
-  },
-];
-
-const INITIAL_COMMENTS: CommentItem[] = [
-  { id: "1", user: "Tasha", text: "Episode 12 is crazy 😭🔥", likes: 0 },
-  { id: "2", user: "Mike", text: "Better than most shows.", likes: 0 },
-  { id: "3", user: "Nia", text: "When is the next episode?", likes: 0 },
-];
+// Production app: catalogue and media come from the Pocket Rivals server.
 
 const DEFAULT_PACKAGES: CoinPackage[] = [
   {
@@ -288,7 +119,7 @@ function normalizeShow(x: any): Story {
               ? x.cover.trim()
               : typeof x?.image === "string" && x.image.trim()
                 ? x.image.trim()
-                : FALLBACK_IMAGE;
+                : "";
 
   return {
     id: String(x?.id ?? x?._id ?? Date.now()),
@@ -301,7 +132,7 @@ function normalizeShow(x: any): Story {
     plays: Number(x?.plays ?? x?.views ?? 0),
     likes: Number(x?.likes ?? 0),
     rating: Number(x?.rating ?? 0),
-    episodes: Math.max(1, episodeCount),
+    episodes: Math.max(0, episodeCount),
     lockedFrom: Number(x?.lockedFrom ?? 2),
     duration: Number(x?.duration ?? firstEpisode?.duration ?? 20),
     audioUrl: serverAudioUrl,
@@ -456,7 +287,7 @@ function StoryCard({
 }) {
   return (
     <Pressable onPress={onPress} style={styles.storyCard}>
-      <Image source={{ uri: story.image }} style={styles.storyImage} />
+      {story.image ? <Image source={{ uri: story.image }} style={styles.storyImage} /> : <View style={[styles.storyImage, { backgroundColor: "#111" }]} />}
       <View style={styles.storyGradient} />
       <View style={styles.storyCardText}>
         <Text style={styles.storyGenre}>{story.genre.toUpperCase()}</Text>
@@ -480,7 +311,7 @@ function StoryRow({
 }) {
   return (
     <Pressable onPress={onPress} style={styles.storyRow}>
-      <Image source={{ uri: story.image }} style={styles.rowImage} />
+      {story.image ? <Image source={{ uri: story.image }} style={styles.rowImage} /> : <View style={[styles.rowImage, { backgroundColor: "#111" }]} />}
       <View style={styles.rowInfo}>
         <Text style={styles.rowTitle} numberOfLines={1}>{story.title}</Text>
         <Text style={styles.muted}>{story.genre} · {story.episodes} episodes</Text>
@@ -536,7 +367,7 @@ function HomeScreen({
       />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.hero}>
-          <Image source={{ uri: featured?.image || FALLBACK_IMAGE }} style={styles.heroImage} />
+          {featured?.image ? <Image source={{ uri: featured.image }} style={styles.heroImage} /> : <View style={styles.heroImage} />}
           <View style={styles.heroOverlay} />
           <View style={styles.heroContent}>
             <Text style={styles.heroEyebrow}>FEATURED ORIGINAL</Text>
@@ -803,7 +634,7 @@ function DetailScreen({
     <SafeAreaView style={styles.safe}>
       <Header title={story.title} onBack={() => go("home")} onCoins={() => go("coins")} coins={coins} />
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Image source={{ uri: story.image }} style={styles.detailImage} />
+        {story.image ? <Image source={{ uri: story.image }} style={styles.detailImage} /> : <View style={[styles.detailImage, { backgroundColor: "#111" }]} />}
         <Text style={styles.detailGenre}>{story.genre.toUpperCase()}</Text>
         <Text style={styles.detailTitle}>{story.title}</Text>
         <Text style={styles.muted}>By {story.author} · {story.creator}</Text>
@@ -876,7 +707,7 @@ function VideoScreen({
   onCoins: () => void;
   coins: number;
 }) {
-  const source = story.videoUrl || VIDEO_URL;
+  const source = story.videoUrl || "";
   const player = useVideoPlayer(source, (p) => {
     p.loop = false;
     p.staysActiveInBackground = false;
@@ -939,7 +770,7 @@ function AudioScreen({
   onBack: () => void;
   coins: number;
 }) {
-  const source = story.audioUrl || AUDIO_URL;
+  const source = story.audioUrl || "";
   const player = useAudioPlayer(source, {
     updateInterval: 500,
     downloadFirst: false,
@@ -959,7 +790,7 @@ function AudioScreen({
     <SafeAreaView style={styles.safe}>
       <Header title="Audio" onBack={onBack} coins={coins} />
       <View style={styles.audioScreen}>
-        <Image source={{ uri: story.image }} style={styles.audioArtwork} />
+        {story.image ? <Image source={{ uri: story.image }} style={styles.audioArtwork} /> : <View style={[styles.audioArtwork, { backgroundColor: "#111" }]} />}
         <Text style={styles.audioTitle}>{story.title}</Text>
         <Text style={styles.muted}>Episode 1 · {story.author}</Text>
         <View style={styles.progressTrack}>
@@ -1579,7 +1410,7 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>("home");
   const [previousScreen, setPreviousScreen] = useState<Screen>("home");
   const [stories, setStories] = useState<Story[]>(INITIAL_STORIES);
-  const [selectedStory, setSelectedStory] = useState<Story>(INITIAL_STORIES[0]);
+  const [selectedStory, setSelectedStory] = useState<Story>({ id: "", title: "", genre: "", author: "", creator: "", description: "", image: "", plays: 0, likes: 0, rating: 0, episodes: 0, lockedFrom: 999999, duration: 0 });
 
   // Clean test reset: wallet starts at exactly 0.
   const [coins, setCoins] = useState(0);
@@ -1834,15 +1665,32 @@ export default function App() {
     persistSession(user, token, coins).catch(() => undefined);
   }, [user, token, coins]);
 
+  useEffect(() => {
+    const handler = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (screen === "home") return true;
+      back();
+      return true;
+    });
+    return () => handler.remove();
+  }, [screen, previousScreen]);
+
   async function loadShows() {
     try {
       const data = await api<any>("/api/shows");
       const raw = Array.isArray(data) ? data : data.shows;
-      if (Array.isArray(raw) && raw.length) {
-        setStories(raw.map(normalizeShow));
+      if (Array.isArray(raw)) {
+        const normalized = raw.map(normalizeShow);
+        setStories(normalized);
+        await AsyncStorage.setItem("pocket_rivals_catalogue", JSON.stringify(normalized)).catch(() => undefined);
       }
     } catch {
-      // Offline fallback intentionally remains available for tester builds.
+      try {
+        const cached = await AsyncStorage.getItem("pocket_rivals_catalogue");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed)) setStories(parsed);
+        }
+      } catch {}
     }
   }
 
@@ -1897,11 +1745,8 @@ export default function App() {
 
     try {
       await api(
-        "/api/like",
-        {
-          method: "POST",
-          body: JSON.stringify({ seriesId: story.id, user: user!.username }),
-        },
+        `/api/shows/${encodeURIComponent(story.id)}/like`,
+        { method: "POST" },
         token
       );
     } catch (e: any) {
@@ -1921,9 +1766,18 @@ export default function App() {
 
   async function toggleFollow(story: Story) {
     if (!requireLogin("follow creators")) return;
-    // Current server exposes story/like/comment/auth routes. Keep this state clean
-    // until a dedicated follow endpoint is added.
-    setFollowed((prev) => ({ ...prev, [story.id]: !prev[story.id] }));
+    const creatorId = String(story.raw?.creatorId || story.raw?.creator?.id || story.raw?.creatorId || story.raw?.authorId || "");
+    if (!creatorId) {
+      Alert.alert("Creator unavailable", "This story is not linked to a creator account yet.");
+      return;
+    }
+    try {
+      const result = await api<any>(`/api/users/${encodeURIComponent(creatorId)}/follow`, { method: "POST" }, token);
+      setFollowed((prev) => ({ ...prev, [story.id]: !!result.following }));
+      setCreatorFollowing(!!result.following);
+    } catch (e: any) {
+      Alert.alert("Follow failed", e.message || "Unable to follow this creator.");
+    }
   }
 
   async function postComment() {
@@ -1960,16 +1814,43 @@ export default function App() {
     }
   }
 
-  function likeComment(id: string) {
+  async function likeComment(id: string) {
     if (!requireLogin("like comments")) return;
-    setCommentLiked((prev) => ({ ...prev, [id]: !prev[id] }));
-    setComments((prev) =>
-      prev.map((c) =>
-        c.id === id
-          ? { ...c, likes: Math.max(0, c.likes + (commentLiked[id] ? -1 : 1)) }
-          : c
-      )
-    );
+    const wasLiked = !!commentLiked[id];
+    if (wasLiked) return;
+    setCommentLiked((prev) => ({ ...prev, [id]: true }));
+    setComments((prev) => prev.map((c) => c.id === id ? { ...c, likes: c.likes + 1 } : c));
+    try {
+      const result = await api<any>(`/api/comments/${encodeURIComponent(id)}/like`, { method: "POST" }, token);
+      if (typeof result.likes === "number") {
+        setComments((prev) => prev.map((c) => c.id === id ? { ...c, likes: result.likes } : c));
+      }
+    } catch (e: any) {
+      setCommentLiked((prev) => ({ ...prev, [id]: false }));
+      setComments((prev) => prev.map((c) => c.id === id ? { ...c, likes: Math.max(0, c.likes - 1) } : c));
+      Alert.alert("Comment like failed", e.message || "Unable to like comment.");
+    }
+  }
+
+  async function loadComments(showId: string) {
+    try {
+      const data = await api<any>(`/api/shows/${encodeURIComponent(showId)}/comments`);
+      const raw = Array.isArray(data) ? data : data.comments;
+      if (Array.isArray(raw)) {
+        setComments(raw.map((c: any) => ({
+          id: String(c.id ?? c._id),
+          user: String(c.username ?? c.user ?? "User"),
+          text: String(c.text ?? ""),
+          likes: Number(c.likes ?? 0),
+        })));
+      }
+    } catch (e) {
+      console.warn("Comments load failed", e);
+    }
+  }
+
+  async function reportShare(showId: string) {
+    try { await api(`/api/shows/${encodeURIComponent(showId)}/share`, { method: "POST" }, token); } catch {}
   }
 
   async function register() {
@@ -2112,14 +1993,8 @@ export default function App() {
         genre: newStoryGenre.trim() || "Drama",
         author: user!.username,
         creator: user!.username,
-        image: FALLBACK_IMAGE,
-        plays: 0,
-        likes: 0,
-        episodes: 1,
-        lockedFrom: 2,
-        duration: 1,
         status: "pending",
-        videoUrl: VIDEO_URL,
+        creatorId: user!.id,
       };
 
       const result = await api<any>(
@@ -2261,6 +2136,7 @@ export default function App() {
         title: selectedStory.title,
         message: `${selectedStory.title} — watch it on Pocket Rivals.`,
       });
+      await reportShare(selectedStory.id);
     } catch {}
   }
 
@@ -2313,7 +2189,7 @@ export default function App() {
           onLike={() => toggleLike(selectedStory)}
           onSave={() => toggleSave(selectedStory.id)}
           onFollow={() => toggleFollow(selectedStory)}
-          openComments={() => navigate("comments")}
+          openComments={() => { loadComments(selectedStory.id); navigate("comments"); }}
           openPlayer={openEpisode}
           openCreator={() => navigate("creator")}
           go={navigate}

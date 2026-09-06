@@ -1,0 +1,1324 @@
+>{story.creator}</Text>
+          <Text style={styles.muted}>Creator · {story.author}</Text>
+          <Pressable style={styles.primaryButton} onPress={onToggleFollow}>
+            <Text style={styles.primaryButtonText}>{following ? "Following" : "Follow creator"}</Text>
+          </Pressable>
+          <Pressable style={styles.secondaryButton} onPress={() => go("create")}>
+            <Text style={styles.secondaryButtonText}>Creator studio</Text>
+          </Pressable>
+        </View>
+
+        <SectionTitle title="Creator Analytics" />
+        <View style={styles.analyticsGrid}>
+          <AnalyticsCard label="Total Plays" value={money(story.plays)} />
+          <AnalyticsCard label="Likes" value={money(story.likes)} />
+          <AnalyticsCard label="Growth" value="Live" />
+          <AnalyticsCard label="Estimated Earnings" value={`$${Number(story.raw?.estimatedEarnings ?? 0).toFixed(2)}`} />
+        </View>
+        <Text style={[styles.muted, { marginBottom: 18 }]}>
+          Estimated earnings are shown separately from confirmed payouts. Actual creator payments will be based on server-side analytics and the creator payout rules.
+        </Text>
+
+        <SectionTitle title="Creator challenge" />
+        <View style={styles.challengeCard}>
+          <Text style={styles.challengeTitle}>Publish your best story</Text>
+          <Text style={styles.muted}>
+            Creator uploads are submitted to the server for review. No fake engagement is generated.
+          </Text>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function CreateScreen({
+  title,
+  setTitle,
+  description,
+  setDescription,
+  genre,
+  setGenre,
+  onPublish,
+  onBack,
+  loading,
+  user,
+}: {
+  title: string;
+  setTitle: (v: string) => void;
+  description: string;
+  setDescription: (v: string) => void;
+  genre: string;
+  setGenre: (v: string) => void;
+  onPublish: () => void;
+  onBack: () => void;
+  loading: boolean;
+  user: User | null;
+}) {
+  return (
+    <SafeAreaView style={styles.safe}>
+      <Header title="Creator Studio" onBack={onBack} coins={0} />
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+        <ScrollView contentContainerStyle={styles.form}>
+          <Text style={styles.pageTitle}>Create a story</Text>
+          {!user && <Text style={styles.errorText}>Log in before publishing.</Text>}
+
+          <Text style={styles.fieldLabel}>Title</Text>
+          <TextInput value={title} onChangeText={setTitle} placeholder="Story title" placeholderTextColor="#666" style={styles.formInput} />
+
+          <Text style={styles.fieldLabel}>Genre</Text>
+          <TextInput value={genre} onChangeText={setGenre} placeholder="Drama" placeholderTextColor="#666" style={styles.formInput} />
+
+          <Text style={styles.fieldLabel}>Description</Text>
+          <TextInput
+            value={description}
+            onChangeText={setDescription}
+            placeholder="Tell viewers what this story is about..."
+            placeholderTextColor="#666"
+            style={[styles.formInput, styles.largeInput]}
+            multiline
+          />
+
+          <View style={styles.challengeCard}>
+            <Text style={styles.challengeTitle}>Review first</Text>
+            <Text style={styles.muted}>
+              New creator content should be reviewed by your admin/moderation system before being promoted.
+            </Text>
+          </View>
+
+          <Pressable style={styles.primaryButton} onPress={onPublish} disabled={loading || !user}>
+            {loading ? <ActivityIndicator /> : <Text style={styles.primaryButtonText}>Submit to server</Text>}
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+function SettingsScreen({
+  autoPlay,
+  setAutoPlay,
+  autoUnlock,
+  setAutoUnlock,
+  notifications,
+  setNotifications,
+  onBack,
+  go,
+}: {
+  autoPlay: boolean;
+  setAutoPlay: (v: boolean) => void;
+  autoUnlock: boolean;
+  setAutoUnlock: (v: boolean) => void;
+  notifications: boolean;
+  setNotifications: (v: boolean) => void;
+  onBack: () => void;
+  go: (s: Screen) => void;
+}) {
+  const row = (title: string, value: boolean, setValue: (v: boolean) => void) => (
+    <View style={styles.settingRow}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.settingTitle}>{title}</Text>
+      </View>
+      <Switch value={value} onValueChange={setValue} />
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <Header title="Settings" onBack={onBack} coins={0} />
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {row("Autoplay", autoPlay, setAutoPlay)}
+        {row("Auto unlock", autoUnlock, setAutoUnlock)}
+        {row("Notifications", notifications, setNotifications)}
+
+        <Pressable style={styles.settingsLink} onPress={() => go("premium")}>
+          <Text style={styles.settingTitle}>Premium</Text><Text style={styles.chevron}>›</Text>
+        </Pressable>
+        <Pressable style={styles.settingsLink} onPress={() => go("coins")}>
+          <Text style={styles.settingTitle}>Wallet & coins</Text><Text style={styles.chevron}>›</Text>
+        </Pressable>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function PremiumScreen({ onBack }: { onBack: () => void }) {
+  return (
+    <SafeAreaView style={styles.safe}>
+      <Header title="Premium" onBack={onBack} coins={0} />
+      <View style={styles.premium}>
+        <Text style={styles.premiumIcon}>✦</Text>
+        <Text style={styles.pageTitle}>Pocket Rivals Premium</Text>
+        <Text style={styles.mutedCenter}>
+          Premium memberships can be connected to your production billing provider later.
+        </Text>
+        <View style={styles.challengeCard}>
+          <Text style={styles.challengeTitle}>Premium benefits</Text>
+          <Text style={styles.muted}>• Ad-free experience when enabled</Text>
+          <Text style={styles.muted}>• Premium stories</Text>
+          <Text style={styles.muted}>• Creator perks</Text>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function CommunityScreen({ go, stories }: { go: (s: Screen) => void; stories: Story[] }) {
+  return (
+    <SafeAreaView style={styles.safe}>
+      <Header title="Community" onBack={() => go("home")} coins={0} />
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Text style={styles.pageTitle}>Creator community</Text>
+        <Text style={styles.muted}>Discover creators without manufacturing likes or followers.</Text>
+        {stories.map((s) => (
+          <View key={s.id} style={styles.communityCard}>
+            <View style={styles.creatorAvatarSmall}>
+              <Text>{s.creator.slice(0, 1).toUpperCase()}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.settingTitle}>{s.creator}</Text>
+              <Text style={styles.muted}>{s.genre} · {money(s.plays)} plays</Text>
+            </View>
+          </View>
+        ))}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function DownloadsScreen({
+  stories,
+  downloaded,
+  openStory,
+  onBack,
+}: {
+  stories: Story[];
+  downloaded: Record<string, boolean>;
+  openStory: (s: Story) => void;
+  onBack: () => void;
+}) {
+  const items = stories.filter((s) => downloaded[s.id]);
+  return (
+    <SafeAreaView style={styles.safe}>
+      <Header title="Downloads" onBack={onBack} coins={0} />
+      {items.length ? (
+        <FlatList
+          data={items}
+          keyExtractor={(x) => x.id}
+          contentContainerStyle={styles.listContent}
+          renderItem={({ item }) => <StoryRow story={item} onPress={() => openStory(item)} />}
+        />
+      ) : (
+        <EmptyState title="No downloads" text="Downloads are kept as local app state for this testing build." />
+      )}
+    </SafeAreaView>
+  );
+}
+
+function NotificationsScreen({ onBack }: { onBack: () => void }) {
+  return (
+    <SafeAreaView style={styles.safe}>
+      <Header title="Notifications" onBack={onBack} coins={0} />
+      <EmptyState title="You're all caught up" text="Creator and story notifications will appear here." />
+    </SafeAreaView>
+  );
+}
+
+export default function App() {
+  const [screen, setScreen] = useState<Screen>("home");
+  const [previousScreen, setPreviousScreen] = useState<Screen>("home");
+  const [stories, setStories] = useState<Story[]>(INITIAL_STORIES);
+  const [selectedStory, setSelectedStory] = useState<Story>(INITIAL_STORIES[0]);
+
+  // Clean test reset: wallet starts at exactly 0.
+  const [coins, setCoins] = useState(0);
+
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+
+  const [liked, setLiked] = useState<Record<string, boolean>>({});
+  const likedRef = useRef<Record<string, boolean>>({});
+  const [saved, setSaved] = useState<Record<string, boolean>>({});
+  const [followed, setFollowed] = useState<Record<string, boolean>>({});
+  const [downloaded, setDownloaded] = useState<Record<string, boolean>>({});
+  const [unlocked, setUnlocked] = useState<Record<string, boolean>>({});
+  const [commentLiked, setCommentLiked] = useState<Record<string, boolean>>({});
+  const [claimedDaily, setClaimedDaily] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [comments, setComments] = useState<CommentItem[]>(INITIAL_COMMENTS);
+  const [commentText, setCommentText] = useState("");
+  const [currentEpisode, setCurrentEpisode] = useState(1);
+
+  const [autoPlay, setAutoPlay] = useState(true);
+  const [autoUnlock, setAutoUnlock] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+
+  const [authMode, setAuthMode] = useState<"register" | "login">("register");
+  const [regUsername, setRegUsername] = useState("");
+  const [regEmail, setRegEmail] = useState("");
+  const [regPassword, setRegPassword] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+
+  const [newStoryTitle, setNewStoryTitle] = useState("");
+  const [newStoryDescription, setNewStoryDescription] = useState("");
+  const [newStoryGenre, setNewStoryGenre] = useState("Drama");
+  const [createLoading, setCreateLoading] = useState(false);
+
+  const [aiMessages, setAiMessages] = useState<AIMessage[]>([
+    {
+      id: "welcome",
+      role: "assistant",
+      text: "Hey 👋 I'm Pocket AI. Ask me about stories, creators or the Pocket Rivals experience.",
+    },
+  ]);
+  const [aiInput, setAiInput] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
+
+  const [coinPackages, setCoinPackages] = useState<CoinPackage[]>(DEFAULT_PACKAGES);
+  const [coinLoading, setCoinLoading] = useState(false);
+
+  const rewardedAdRef = useRef<LevelPlayRewardedAd | null>(null);
+  const interstitialAdRef = useRef<LevelPlayInterstitialAd | null>(null);
+  const [adsInitialized, setAdsInitialized] = useState(false);
+  const [rewardedAdReady, setRewardedAdReady] = useState(false);
+  const [rewardedAdLoading, setRewardedAdLoading] = useState(false);
+  const [interstitialAdReady, setInterstitialAdReady] = useState(false);
+  const [watchedEpisodes, setWatchedEpisodes] = useState(0);
+
+  const [creatorFollowing, setCreatorFollowing] = useState(false);
+
+  const navigate = (next: Screen, story?: Story) => {
+    setPreviousScreen(screen);
+    if (story) setSelectedStory(story);
+    setScreen(next);
+  };
+
+  const back = () => setScreen(previousScreen || "home");
+
+  async function refreshWalletFromServer() {
+    if (!token) return;
+    try {
+      const me = await api<any>("/api/me", {}, token);
+      const account = me?.user ?? me?.account ?? me;
+      const balance = Number(me?.coins ?? account?.coins ?? me?.balance);
+      if (Number.isFinite(balance)) setCoins(balance);
+    } catch {}
+  }
+
+  async function initializeLevelPlay() {
+    if (Platform.OS !== "android" && Platform.OS !== "ios") return;
+    if (!LEVELPLAY_APP_KEY || LEVELPLAY_APP_KEY.includes("PUT_YOUR_")) {
+      console.warn("Pocket Rivals: LevelPlay App Key is not configured.");
+      return;
+    }
+
+    try {
+      const request = LevelPlayInitRequest.builder(LEVELPLAY_APP_KEY)
+        .withUserId(user?.id || `guest-${Date.now()}`.slice(0, 64))
+        .build();
+
+      await LevelPlay.init(request, {
+        onInitFailed: (error) => {
+          console.error("LevelPlay init failed:", error);
+          setAdsInitialized(false);
+        },
+        onInitSuccess: () => {
+          console.log("LevelPlay initialized");
+          setAdsInitialized(true);
+        },
+      });
+    } catch (e) {
+      console.error("LevelPlay initialization error:", e);
+    }
+  }
+
+  async function loadRewardedAd() {
+    if (!adsInitialized || !LEVELPLAY_REWARDED_AD_UNIT_ID || LEVELPLAY_REWARDED_AD_UNIT_ID.includes("PUT_YOUR_")) return;
+    try {
+      setRewardedAdLoading(true);
+      if (!rewardedAdRef.current) {
+        rewardedAdRef.current = new LevelPlayRewardedAd(LEVELPLAY_REWARDED_AD_UNIT_ID);
+        const listener: LevelPlayRewardedAdListener = {
+          onAdLoaded: () => setRewardedAdReady(true),
+          onAdLoadFailed: (error: LevelPlayAdError) => {
+            console.warn("Rewarded ad load failed:", error);
+            setRewardedAdReady(false);
+          },
+          onAdInfoChanged: (_info: LevelPlayAdInfo) => {},
+          onAdDisplayed: () => {},
+          onAdDisplayFailed: (error: LevelPlayAdError) => {
+            console.warn("Rewarded ad display failed:", error);
+            setRewardedAdReady(false);
+          },
+          onAdClicked: () => {},
+          onAdClosed: () => {
+            setRewardedAdReady(false);
+            setTimeout(() => loadRewardedAd(), 800);
+          },
+          // Do NOT credit coins here. LevelPlay S2S callback credits the wallet.
+          onAdRewarded: () => {
+            console.log("LevelPlay reward earned; waiting for server S2S confirmation.");
+            setTimeout(() => refreshWalletFromServer(), 1500);
+            setTimeout(() => refreshWalletFromServer(), 4500);
+          },
+        };
+        rewardedAdRef.current.setListener(listener);
+      }
+      await rewardedAdRef.current.loadAd();
+    } catch (e) {
+      console.warn("Rewarded ad error:", e);
+    } finally {
+      setRewardedAdLoading(false);
+    }
+  }
+
+  async function watchRewardedAd() {
+    if (!requireLogin("watch rewarded ads")) return;
+    if (!rewardedAdRef.current) return;
+    try {
+      await LevelPlay.setDynamicUserId(String(user?.id || user?.username || "guest").replace(/[^a-zA-Z0-9]/g, "").slice(0, 64));
+      if (await rewardedAdRef.current.isAdReady()) {
+        setRewardedAdLoading(true);
+        await rewardedAdRef.current.showAd(LEVELPLAY_REWARDED_PLACEMENT);
+      } else {
+        Alert.alert("Ad not ready", "We are loading a new rewarded ad. Try again in a moment.");
+        await loadRewardedAd();
+      }
+    } catch (e: any) {
+      Alert.alert("Ad unavailable", e?.message || "The rewarded ad could not be shown.");
+    } finally {
+      setRewardedAdLoading(false);
+    }
+  }
+
+  async function loadInterstitialAd() {
+    if (!adsInitialized || !LEVELPLAY_INTERSTITIAL_AD_UNIT_ID || LEVELPLAY_INTERSTITIAL_AD_UNIT_ID.includes("PUT_YOUR_")) return;
+    try {
+      if (!interstitialAdRef.current) {
+        interstitialAdRef.current = new LevelPlayInterstitialAd(LEVELPLAY_INTERSTITIAL_AD_UNIT_ID);
+        const listener: LevelPlayInterstitialAdListener = {
+          onAdLoaded: () => setInterstitialAdReady(true),
+          onAdLoadFailed: (error: LevelPlayAdError) => {
+            console.warn("Interstitial load failed:", error);
+            setInterstitialAdReady(false);
+          },
+          onAdInfoChanged: (_info: LevelPlayAdInfo) => {},
+          onAdDisplayed: () => {},
+          onAdDisplayFailed: (error: LevelPlayAdError) => console.warn("Interstitial display failed:", error),
+          onAdClicked: () => {},
+          onAdClosed: () => {
+            setInterstitialAdReady(false);
+            setTimeout(() => loadInterstitialAd(), 800);
+          },
+        };
+        interstitialAdRef.current.setListener(listener);
+      }
+      await interstitialAdRef.current.loadAd();
+    } catch (e) {
+      console.warn("Interstitial error:", e);
+    }
+  }
+
+  async function maybeShowInterstitial() {
+    if (!interstitialAdRef.current || !interstitialAdReady) return;
+    try {
+      if (await interstitialAdRef.current.isAdReady()) {
+        await interstitialAdRef.current.showAd(LEVELPLAY_INTERSTITIAL_PLACEMENT);
+      }
+    } catch {}
+  }
+
+  useEffect(() => {
+    initializeLevelPlay();
+  }, []);
+
+  useEffect(() => {
+    if (!adsInitialized) return;
+    loadRewardedAd();
+    loadInterstitialAd();
+  }, [adsInitialized]);
+
+  useEffect(() => {
+    if (!adsInitialized || !user?.id) return;
+    LevelPlay.setDynamicUserId(String(user.id).replace(/[^a-zA-Z0-9]/g, "").slice(0, 64)).catch(() => {});
+  }, [adsInitialized, user?.id]);
+
+  useEffect(() => {
+    loadShows();
+    loadCoinPackages();
+    restoreSession();
+  }, []);
+
+  async function restoreSession() {
+    try {
+      const raw = await AsyncStorage.getItem("pocket_rivals_session");
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (!saved?.token || !saved?.user) return;
+      setToken(String(saved.token));
+      setUser(saved.user);
+      setCoins(Number(saved.coins ?? 0));
+    } catch {
+      await AsyncStorage.removeItem("pocket_rivals_session").catch(() => undefined);
+    }
+  }
+
+  async function persistSession(nextUser: User, nextToken: string | null, nextCoins: number) {
+    if (!nextToken) return;
+    await AsyncStorage.setItem(
+      "pocket_rivals_session",
+      JSON.stringify({ user: nextUser, token: nextToken, coins: nextCoins })
+    );
+  }
+
+
+  useEffect(() => {
+    likedRef.current = liked;
+  }, [liked]);
+
+  useEffect(() => {
+    if (!user || !token) return;
+    persistSession(user, token, coins).catch(() => undefined);
+  }, [user, token, coins]);
+
+  async function loadShows() {
+    try {
+      const data = await api<any>("/api/shows");
+      const raw = Array.isArray(data) ? data : data.shows;
+      if (Array.isArray(raw) && raw.length) {
+        setStories(raw.map(normalizeShow));
+      }
+    } catch {
+      // Offline fallback intentionally remains available for tester builds.
+    }
+  }
+
+  async function loadCoinPackages() {
+    try {
+      const data = await api<any>("/api/coins/packages");
+      const raw = Array.isArray(data) ? data : data.packages;
+      if (Array.isArray(raw) && raw.length) {
+        setCoinPackages(
+          raw.map((x: any) => ({
+            coins: Number(x.coins),
+            amount: String(x.amount ?? x.price ?? ""),
+            url: String(x.url ?? x.paymentUrl ?? ""),
+          }))
+        );
+      }
+    } catch {
+      setCoinPackages(DEFAULT_PACKAGES);
+    }
+  }
+
+  function requireLogin(action: string) {
+    if (user && token) return true;
+    Alert.alert("Login required", `Please register or log in before you ${action}.`, [
+      { text: "Later", style: "cancel" },
+      {
+        text: "Log in / Register",
+        onPress: () => {
+          setAuthMode("login");
+          navigate("register");
+        },
+      },
+    ]);
+    return false;
+  }
+
+  async function toggleLike(story: Story) {
+    if (!requireLogin("like videos")) return;
+
+    const wasLiked = !!likedRef.current[story.id];
+
+    // Prevent double taps from creating duplicate like requests.
+    if (wasLiked) return;
+
+    setLiked((prev) => ({ ...prev, [story.id]: true }));
+    likedRef.current = { ...likedRef.current, [story.id]: true };
+
+    setStories((prev) =>
+      prev.map((s) => (s.id === story.id ? { ...s, likes: s.likes + 1 } : s))
+    );
+    setSelectedStory((s) => (s.id === story.id ? { ...s, likes: s.likes + 1 } : s));
+
+    try {
+      await api(
+        "/api/like",
+        {
+          method: "POST",
+          body: JSON.stringify({ seriesId: story.id, user: user!.username }),
+        },
+        token
+      );
+    } catch (e: any) {
+      setLiked((prev) => ({ ...prev, [story.id]: false }));
+      likedRef.current = { ...likedRef.current, [story.id]: false };
+      setStories((prev) =>
+        prev.map((s) => (s.id === story.id ? { ...s, likes: Math.max(0, s.likes - 1) } : s))
+      );
+      setSelectedStory((s) => (s.id === story.id ? { ...s, likes: Math.max(0, s.likes - 1) } : s));
+      Alert.alert("Like failed", e.message);
+    }
+  }
+
+  function toggleSave(id: string) {
+    setSaved((prev) => ({ ...prev, [id]: !prev[id] }));
+  }
+
+  async function toggleFollow(story: Story) {
+    if (!requireLogin("follow creators")) return;
+    // Current server exposes story/like/comment/auth routes. Keep this state clean
+    // until a dedicated follow endpoint is added.
+    setFollowed((prev) => ({ ...prev, [story.id]: !prev[story.id] }));
+  }
+
+  async function postComment() {
+    if (!requireLogin("comment")) return;
+    const text = commentText.trim();
+    if (!text) return;
+
+    const local: CommentItem = {
+      id: `local-${Date.now()}`,
+      user: user!.username,
+      text,
+      likes: 0,
+    };
+
+    setComments((prev) => [local, ...prev]);
+    setCommentText("");
+
+    try {
+      await api(
+        "/api/comments",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            seriesId: selectedStory.id,
+            user: user!.username,
+            text,
+          }),
+        },
+        token
+      );
+    } catch (e: any) {
+      setComments((prev) => prev.filter((x) => x.id !== local.id));
+      Alert.alert("Comment failed", e.message);
+    }
+  }
+
+  function likeComment(id: string) {
+    if (!requireLogin("like comments")) return;
+    setCommentLiked((prev) => ({ ...prev, [id]: !prev[id] }));
+    setComments((prev) =>
+      prev.map((c) =>
+        c.id === id
+          ? { ...c, likes: Math.max(0, c.likes + (commentLiked[id] ? -1 : 1)) }
+          : c
+      )
+    );
+  }
+
+  async function register() {
+    const username = regUsername.trim();
+    const email = regEmail.trim().toLowerCase();
+    const password = regPassword;
+
+    if (username.length < 3) return Alert.alert("Invalid username", "Use at least 3 characters.");
+    if (!email.includes("@")) return Alert.alert("Invalid email", "Enter a valid email.");
+    if (password.length < 6) return Alert.alert("Weak password", "Use at least 6 characters.");
+
+    setAuthLoading(true);
+    try {
+      await api("/api/signup", {
+        method: "POST",
+        body: JSON.stringify({ username, email, password }),
+      });
+
+      await loginAccount(email, password, true);
+    } catch (e: any) {
+      Alert.alert("Registration failed", e.message);
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  async function loginAccount(emailOverride?: string, passwordOverride?: string, fromRegister = false) {
+    const email = (emailOverride ?? regEmail).trim().toLowerCase();
+    const password = passwordOverride ?? regPassword;
+
+    if (!email.includes("@")) return Alert.alert("Invalid email", "Enter a valid email.");
+    if (password.length < 6) return Alert.alert("Invalid password", "Use at least 6 characters.");
+
+    if (!fromRegister) setAuthLoading(true);
+    try {
+      const login = await api<any>("/api/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
+
+      const newToken = login.token ?? login.accessToken ?? null;
+      if (!newToken) throw new Error("The server did not return a login token.");
+
+      const account = login.user ?? login.account ?? {
+        username: regUsername || email.split("@")[0],
+        email,
+      };
+      const nextUser: User = {
+        id: account.id ?? account._id,
+        username: account.username ?? (regUsername || email.split("@")[0]),
+        email: account.email ?? email,
+      };
+      const nextCoins = Number(login.coins ?? account.coins ?? 0);
+
+      setToken(newToken);
+      setUser(nextUser);
+      setCoins(nextCoins);
+      await persistSession(nextUser, newToken, nextCoins);
+      setRegPassword("");
+      navigate("profile");
+      if (!fromRegister) Alert.alert("Welcome back", `You're signed in as ${nextUser.username}.`);
+      else Alert.alert("Welcome", "Your Pocket Rivals account is ready.");
+    } catch (e: any) {
+      Alert.alert("Login failed", e.message || "Unable to sign in.");
+    } finally {
+      if (!fromRegister) setAuthLoading(false);
+    }
+  }
+
+  async function logout() {
+    await AsyncStorage.removeItem("pocket_rivals_session").catch(() => undefined);
+    setUser(null);
+    setToken(null);
+    setCoins(0);
+    setLiked({});
+    likedRef.current = {};
+    navigate("home");
+  }
+
+  async function sendAI() {
+    const message = aiInput.trim();
+    if (!message || aiLoading) return;
+
+    setAiError("");
+    const userMessage: AIMessage = {
+      id: `u-${Date.now()}`,
+      role: "user",
+      text: message,
+    };
+
+    const nextMessages = [...aiMessages, userMessage];
+    setAiMessages(nextMessages);
+    setAiInput("");
+    setAiLoading(true);
+
+    try {
+      const result = await api<any>(
+        "/api/ai/chat",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            message,
+            messages: nextMessages,
+            app: "Pocket Rivals",
+            assistantName: "Pocket AI",
+            shows: stories,
+          }),
+        },
+        token
+      );
+
+      const text =
+        result.reply ??
+        result.text ??
+        result.message ??
+        result.response ??
+        "Pocket AI returned no text.";
+
+      setAiMessages((prev) => [
+        ...prev,
+        { id: `a-${Date.now()}`, role: "assistant", text: String(text) },
+      ]);
+    } catch (e: any) {
+      setAiError(e.message || "Pocket AI is unavailable.");
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  async function publishStory() {
+    if (!requireLogin("publish")) return;
+    if (!newStoryTitle.trim()) return Alert.alert("Missing title", "Add a title.");
+    if (!newStoryDescription.trim()) return Alert.alert("Missing description", "Add a description.");
+
+    setCreateLoading(true);
+    try {
+      const payload = {
+        title: newStoryTitle.trim(),
+        description: newStoryDescription.trim(),
+        genre: newStoryGenre.trim() || "Drama",
+        author: user!.username,
+        creator: user!.username,
+        image: FALLBACK_IMAGE,
+        plays: 0,
+        likes: 0,
+        episodes: 1,
+        lockedFrom: 2,
+        duration: 1,
+        status: "pending",
+        videoUrl: VIDEO_URL,
+      };
+
+      const result = await api<any>(
+        "/api/shows",
+        { method: "POST", body: JSON.stringify(payload) },
+        token
+      );
+
+      if (result?.show) {
+        setStories((prev) => [normalizeShow(result.show), ...prev]);
+      } else {
+        await loadShows();
+      }
+
+      setNewStoryTitle("");
+      setNewStoryDescription("");
+      Alert.alert("Submitted", "Your story was sent to the server for review.");
+      navigate("creator");
+    } catch (e: any) {
+      Alert.alert("Publish failed", e.message);
+    } finally {
+      setCreateLoading(false);
+    }
+  }
+
+  async function buyCoins(pkg: CoinPackage) {
+    if (!requireLogin("buy coins")) return;
+
+    setCoinLoading(true);
+    try {
+      // Preferred production route: server creates a unique Paynow transaction
+      // and only credits the wallet after verified Paynow confirmation.
+      try {
+        const payment = await api<any>(
+          "/api/payments/create",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              coins: pkg.coins,
+              amount: pkg.amount,
+            }),
+          },
+          token
+        );
+
+        const url = payment.redirectUrl ?? payment.paymentUrl ?? payment.url;
+        if (url) {
+          await Linking.openURL(url);
+          Alert.alert(
+            "Payment started",
+            "Complete Paynow. Coins will be added only after the server confirms payment."
+          );
+          return;
+        }
+      } catch {
+        // Test server may not have the production payment route yet.
+      }
+
+      // Safe fallback for today's testing: opens the existing Paynow link,
+      // but NEVER credits coins locally.
+      if (pkg.url) {
+        await Linking.openURL(pkg.url);
+        Alert.alert(
+          "Paynow opened",
+          "Complete the payment. This test build does not award coins just because the link was opened."
+        );
+      } else {
+        Alert.alert("Unavailable", "No Paynow payment link is configured.");
+      }
+    } catch (e: any) {
+      Alert.alert("Payment error", e.message);
+    } finally {
+      setCoinLoading(false);
+    }
+  }
+
+  function openEpisode(ep: number) {
+    const locked = ep >= selectedStory.lockedFrom;
+    if (!locked || unlocked[`${selectedStory.id}:${ep}`]) {
+      setCurrentEpisode(ep);
+      navigate("video");
+      return;
+    }
+
+    if (!requireLogin("unlock episodes")) return;
+
+    if (coins < 50) {
+      Alert.alert("Not enough coins", "You need 50 coins to unlock this episode.", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Get coins", onPress: () => navigate("coins") },
+      ]);
+      return;
+    }
+
+    Alert.alert("Unlock episode", "Spend 50 coins?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Unlock",
+        onPress: async () => {
+          try {
+            const result = await api<any>(
+              "/api/coins/spend",
+              {
+                method: "POST",
+                body: JSON.stringify({
+                  amount: 50,
+                  reason: "episode_unlock",
+                  seriesId: selectedStory.id,
+                  episode: ep,
+                }),
+              },
+              token
+            );
+
+            const balance = Number(result.coins ?? result.balance);
+            if (Number.isFinite(balance)) setCoins(balance);
+            else setCoins((x) => Math.max(0, x - 50));
+
+            setUnlocked((prev) => ({
+              ...prev,
+              [`${selectedStory.id}:${ep}`]: true,
+            }));
+            setCurrentEpisode(ep);
+            navigate("video");
+          } catch (e: any) {
+            Alert.alert(
+              "Unlock unavailable",
+              e.message || "The server did not authorize this unlock."
+            );
+          }
+        },
+      },
+    ]);
+  }
+
+  async function shareStory() {
+    try {
+      await Share.share({
+        title: selectedStory.title,
+        message: `${selectedStory.title} — watch it on Pocket Rivals.`,
+      });
+    } catch {}
+  }
+
+  function openStory(story: Story) {
+    setSelectedStory(story);
+    navigate("detail");
+  }
+
+  const screenContent = (() => {
+    if (screen === "home")
+      return <HomeScreen stories={stories} openStory={openStory} go={navigate} coins={coins} />;
+
+    if (screen === "trending")
+      return <TrendingScreen stories={stories} openStory={openStory} go={navigate} coins={coins} />;
+
+    if (screen === "library")
+      return (
+        <LibraryScreen
+          stories={stories}
+          saved={saved}
+          downloaded={downloaded}
+          openStory={openStory}
+          go={navigate}
+          coins={coins}
+        />
+      );
+
+    if (screen === "profile")
+      return <ProfileScreen user={user} go={navigate} coins={coins} logout={logout} />;
+
+    if (screen === "search")
+      return (
+        <SearchScreen
+          stories={stories}
+          query={searchQuery}
+          setQuery={setSearchQuery}
+          openStory={openStory}
+          go={navigate}
+          coins={coins}
+        />
+      );
+
+    if (screen === "detail")
+      return (
+        <DetailScreen
+          story={selectedStory}
+          liked={!!liked[selectedStory.id]}
+          saved={!!saved[selectedStory.id]}
+          followed={!!followed[selectedStory.id]}
+          onLike={() => toggleLike(selectedStory)}
+          onSave={() => toggleSave(selectedStory.id)}
+          onFollow={() => toggleFollow(selectedStory)}
+          openComments={() => navigate("comments")}
+          openPlayer={openEpisode}
+          openCreator={() => navigate("creator")}
+          go={navigate}
+          coins={coins}
+        />
+      );
+
+    if (screen === "video")
+      return (
+        <VideoScreen
+          story={selectedStory}
+          episode={currentEpisode}
+          onBack={() => navigate("detail")}
+          onNext={async () => {
+            const nextWatched = watchedEpisodes + 1;
+            setWatchedEpisodes(nextWatched);
+            if (nextWatched >= 5) {
+              setWatchedEpisodes(0);
+              await maybeShowInterstitial();
+            }
+            if (currentEpisode < selectedStory.episodes) openEpisode(currentEpisode + 1);
+            else Alert.alert("End", "You reached the end of this story.");
+          }}
+          onCoins={() => navigate("coins")}
+          coins={coins}
+        />
+      );
+
+    if (screen === "audio")
+      return <AudioScreen story={selectedStory} onBack={back} coins={coins} />;
+
+    if (screen === "comments")
+      return (
+        <CommentsScreen
+          comments={comments}
+          text={commentText}
+          setText={setCommentText}
+          onSend={postComment}
+          liked={commentLiked}
+          onLike={likeComment}
+          onBack={back}
+          user={user}
+        />
+      );
+
+    if (screen === "coins")
+      return (
+        <CoinsScreen
+          packages={coinPackages}
+          coins={coins}
+          onBuy={buyCoins}
+          onBack={back}
+          loading={coinLoading}
+          go={navigate}
+        />
+      );
+
+    if (screen === "rewards")
+      return (
+        <RewardsScreen
+          onBack={back}
+          user={user}
+          coins={coins}
+          adReady={rewardedAdReady}
+          adLoading={rewardedAdLoading}
+          onWatchAd={watchRewardedAd}
+        />
+      );
+
+    if (screen === "ai")
+      return (
+        <AIScreen
+          messages={aiMessages}
+          input={aiInput}
+          setInput={setAiInput}
+          onSend={sendAI}
+          loading={aiLoading}
+          error={aiError}
+          onBack={back}
+        />
+      );
+
+    if (screen === "register")
+      return (
+        <RegisterScreen
+          onBack={back}
+          onSubmit={register}
+          onLogin={() => loginAccount()}
+          mode={authMode}
+          setMode={setAuthMode}
+          username={regUsername}
+          setUsername={setRegUsername}
+          email={regEmail}
+          setEmail={setRegEmail}
+          password={regPassword}
+          setPassword={setRegPassword}
+          loading={authLoading}
+        />
+      );
+
+    if (screen === "creator")
+      return (
+        <CreatorScreen
+          story={selectedStory}
+          following={creatorFollowing}
+          onToggleFollow={() => {
+            if (!requireLogin("follow creators")) return;
+            setCreatorFollowing((v) => !v);
+          }}
+          onBack={back}
+          go={navigate}
+        />
+      );
+
+    if (screen === "create")
+      return (
+        <CreateScreen
+          title={newStoryTitle}
+          setTitle={setNewStoryTitle}
+          description={newStoryDescription}
+          setDescription={setNewStoryDescription}
+          genre={newStoryGenre}
+          setGenre={setNewStoryGenre}
+          onPublish={publishStory}
+          onBack={back}
+          loading={createLoading}
+          user={user}
+        />
+      );
+
+    if (screen === "settings")
+      return (
+        <SettingsScreen
+          autoPlay={autoPlay}
+          setAutoPlay={setAutoPlay}
+          autoUnlock={autoUnlock}
+          setAutoUnlock={setAutoUnlock}
+          notifications={notificationsEnabled}
+          setNotifications={setNotificationsEnabled}
+          onBack={back}
+          go={navigate}
+        />
+      );
+
+    if (screen === "premium") return <PremiumScreen onBack={back} />;
+
+    if (screen === "community")
+      return <CommunityScreen go={navigate} stories={stories} />;
+
+    if (screen === "downloads")
+      return (
+        <DownloadsScreen
+          stories={stories}
+          downloaded={downloaded}
+          openStory={openStory}
+          onBack={back}
+        />
+      );
+
+    if (screen === "notifications") return <NotificationsScreen onBack={back} />;
+
+    // Keep the remaining screens intentionally routed to real screens rather
+    // than leaving dead buttons.
+    return <HomeScreen stories={stories} openStory={openStory} go={navigate} coins={coins} />;
+  })();
+
+  return (
+    <>
+      <StatusBar barStyle="light-content" backgroundColor="#050505" />
+      {screenContent}
+    </>
+  );
+}
+
+const { width } = Dimensions.get("window");
+
+const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: "#050505",
+  },
+  flex: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 100,
+  },
+  listContent: {
+    padding: 16,
+    paddingBottom: 100,
+  },
+  header: {
+    minHeight: 60,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#050505",
+    borderBottomWidth: 1,
+    borderBottomColor: "#171717",
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  brand: {
+    color: "#fff",
+    fontSize: 19,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  headerTitle: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  headerPill: {
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 18,
+    backgroundColor: "#191919",
+  },
+  headerPillText: {
+    color: "#fff",
+    fontWeight: "900",
+  },
+  coinPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 18,
+    backgroundColor: "#191919",
+  },
+  coinText: {
+    color: "#fff",
+    fontWeight: "800",
+  },
+  iconButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#171717",
+  },
+  iconText: {
+    color: "#fff",
+    fontSize: 42,
+    lineHeight: 44,
+    fontWeight: "800",
+    marginTop: -3,
+  },
+  bottomNav: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 70,
+    backgroundColor: "#090909",
+    borderTopWidth: 1,
+    borderTopColor: "#1d1d1d",
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    paddingBottom: Platform.OS === "ios" ? 10 : 2,
+  },
+  navItem: {
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 70,
+  },
+  navIcon: {
+    color: "#777",
+    fontSize: 22,
+    fontWeight: "800",
+  },
+  navLabel: {
+    color: "#777",
+    fontSize: 10,
+    marginTop: 3,
+  },
+  navActive: {
+    color: "#fff",
+  },
+  hero: {
+    height: 430,
+    borderRadius: 22,
+    overflow: "hidden",
+    backgroundColor: "#121212",
+    marginBottom: 24,
+  },
+  heroImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: "100%",
+    height: "100%",
+  },
+  heroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.54)",
+  },
+  heroContent: {
+    flex: 1,
+    justifyContent: "flex-end",
+    padding: 22,
+  },
+  heroEyebrow: {
+    color: "#bbb",
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1.2,
+    marginBottom: 8,
+  },
+  heroTitle: {
+    color: "#fff",
+    fontSize: 34,
+    fontWeight: "900",
+    lineHeight: 39,
+  },
+  heroDescription: {
+    color: "#ddd",
+    lineHeight: 21,
+    marginTop: 10,
+    marginBottom: 16,
+  },
+  primaryButton: {
+    minHeight: 46,
+    paddingHorizontal: 20,
+    borderRadius: 23,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "flex-start",
+    marginTop: 14,
+  },
+  primaryButtonText: {
+    color: "#050505",
+    fontWeight: "900",
+  },
+  secondaryButton: {
+    minHeight: 46,
+    paddingHorizontal: 20,
+    borderRadius: 23,
+    borderWidth: 1,
+    borderColor: "#333",
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "stretch",
+    marginTop: 12,
+  },
+  se

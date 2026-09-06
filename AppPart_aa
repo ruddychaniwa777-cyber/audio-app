@@ -1,0 +1,1353 @@
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  FlatList,
+  Image,
+  KeyboardAvoidingView,
+  Linking,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  Share,
+  StatusBar,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import {
+  useAudioPlayer,
+  useAudioPlayerStatus,
+  setAudioModeAsync,
+} from "expo-audio";
+import { useVideoPlayer, VideoView } from "expo-video";
+import {
+  LevelPlay,
+  LevelPlayInitRequest,
+  LevelPlayRewardedAd,
+  LevelPlayInterstitialAd,
+  type LevelPlayAdInfo,
+  type LevelPlayAdError,
+  type LevelPlayRewardedAdListener,
+  type LevelPlayInterstitialAdListener,
+} from "unity-levelplay-mediation";
+// Pocket Rivals Master V3 — server-first video + artwork + production LevelPlay ads
+const API_URL =
+  process.env.EXPO_PUBLIC_API_URL?.trim() ||
+  "http://16.170.245.45:3000";
+
+const AUDIO_URL =
+  "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
+
+const VIDEO_URL =
+  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+
+const FALLBACK_IMAGE =
+  "https://images.unsplash.com/photo-1519608487953-e999c86e7455?w=900";
+
+// LevelPlay production configuration. Keep the private App Key in your build
+// environment/secure config; never commit it to GitHub.
+const LEVELPLAY_APP_KEY =
+  process.env.EXPO_PUBLIC_LEVELPLAY_APP_KEY?.trim() ||
+  "PUT_YOUR_UNITY_LEVELPLAY_APP_KEY_HERE";
+const LEVELPLAY_REWARDED_AD_UNIT_ID =
+  process.env.EXPO_PUBLIC_LEVELPLAY_REWARDED_AD_UNIT_ID?.trim() ||
+  "PUT_YOUR_REWARDED_AD_UNIT_ID_HERE";
+const LEVELPLAY_INTERSTITIAL_AD_UNIT_ID =
+  process.env.EXPO_PUBLIC_LEVELPLAY_INTERSTITIAL_AD_UNIT_ID?.trim() ||
+  "PUT_YOUR_INTERSTITIAL_AD_UNIT_ID_HERE";
+const LEVELPLAY_REWARDED_PLACEMENT =
+  process.env.EXPO_PUBLIC_LEVELPLAY_REWARDED_PLACEMENT?.trim() ||
+  "PocketRivalsReward";
+const LEVELPLAY_INTERSTITIAL_PLACEMENT =
+  process.env.EXPO_PUBLIC_LEVELPLAY_INTERSTITIAL_PLACEMENT?.trim() ||
+  "PocketRivalsBetweenEpisodes";
+
+type Screen =
+  | "home" | "trending" | "audio" | "video" | "library" | "profile"
+  | "search" | "detail" | "comments" | "creator" | "coins" | "rewards"
+  | "notifications" | "downloads" | "ai" | "settings" | "premium"
+  | "create" | "community" | "register";
+
+type Story = {
+  id: string;
+  title: string;
+  genre: string;
+  author: string;
+  creator: string;
+  description: string;
+  image: string;
+  plays: number;
+  likes: number;
+  rating: number;
+  episodes: number;
+  lockedFrom: number;
+  duration: number;
+  audioUrl?: string;
+  videoUrl?: string;
+  likedBy?: string[];
+  raw?: any;
+};
+
+type CommentItem = {
+  id: string;
+  user: string;
+  text: string;
+  likes: number;
+};
+
+type AIMessage = {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+};
+
+type CoinPackage = {
+  coins: number;
+  amount: string;
+  url: string;
+};
+
+type User = {
+  id?: string;
+  username: string;
+  email?: string;
+};
+
+const INITIAL_STORIES: Story[] = [
+  {
+    id: "1",
+    title: "The Billionaire's Secret",
+    genre: "Romance",
+    author: "Ruddy C",
+    creator: "Ruddy Studios",
+    description:
+      "A mysterious billionaire, a hidden past and one decision that changes everything.",
+    image: FALLBACK_IMAGE,
+    plays: 0,
+    likes: 0,
+    rating: 4.9,
+    episodes: 86,
+    lockedFrom: 6,
+    duration: 18,
+    videoUrl: VIDEO_URL,
+  },
+  {
+    id: "2",
+    title: "Dark City",
+    genre: "Thriller",
+    author: "J. Phoenix",
+    creator: "Nightfall Studios",
+    description:
+      "A city that never sleeps hides a secret nobody is supposed to discover.",
+    image: FALLBACK_IMAGE,
+    plays: 0,
+    likes: 0,
+    rating: 4.8,
+    episodes: 64,
+    lockedFrom: 5,
+    duration: 22,
+    videoUrl: VIDEO_URL,
+  },
+  {
+    id: "3",
+    title: "Last Survivor",
+    genre: "Apocalypse",
+    author: "M. Carter",
+    creator: "Red Moon",
+    description:
+      "One survivor. One empty city. One last chance to find the truth.",
+    image: FALLBACK_IMAGE,
+    plays: 0,
+    likes: 0,
+    rating: 4.7,
+    episodes: 72,
+    lockedFrom: 8,
+    duration: 20,
+    videoUrl: VIDEO_URL,
+  },
+  {
+    id: "4",
+    title: "The CEO's Daughter",
+    genre: "Drama",
+    author: "Luna Ray",
+    creator: "Rivals Originals",
+    description:
+      "Power, family and betrayal collide when the CEO's daughter returns home.",
+    image: FALLBACK_IMAGE,
+    plays: 0,
+    likes: 0,
+    rating: 4.8,
+    episodes: 91,
+    lockedFrom: 7,
+    duration: 16,
+    videoUrl: VIDEO_URL,
+  },
+  {
+    id: "5",
+    title: "Shadow Hunter",
+    genre: "Fantasy",
+    author: "D. Knight",
+    creator: "Infinity Audio",
+    description:
+      "A hunter discovers that the monsters he has been tracking may be protecting him.",
+    image: FALLBACK_IMAGE,
+    plays: 0,
+    likes: 0,
+    rating: 4.6,
+    episodes: 58,
+    lockedFrom: 4,
+    duration: 24,
+    videoUrl: VIDEO_URL,
+  },
+];
+
+const INITIAL_COMMENTS: CommentItem[] = [
+  { id: "1", user: "Tasha", text: "Episode 12 is crazy 😭🔥", likes: 0 },
+  { id: "2", user: "Mike", text: "Better than most shows.", likes: 0 },
+  { id: "3", user: "Nia", text: "When is the next episode?", likes: 0 },
+];
+
+const DEFAULT_PACKAGES: CoinPackage[] = [
+  {
+    coins: 3000,
+    amount: "$24.99",
+    url: "https://www.paynow.co.zw/Payment/Link/?q=c2VhcmNoPXJ1ZGR5Y2hhbml3YTc3NyU0MGdtYWlsLmNvbSZhbW91bnQ9MjQuOTkmcmVmZXJlbmNlPSZsPTE%3d",
+  },
+  {
+    coins: 1200,
+    amount: "$9.99",
+    url: "https://www.paynow.co.zw/Payment/Link/?q=c2VhcmNoPXJ1ZGR5Y2hhbml3YTc3NyU0MGdtYWlsLmNvbSZhbW91bnQ9OS45OSZyZWZlcmVuY2U9Jmw9MQ%3d%3d",
+  },
+  {
+    coins: 550,
+    amount: "$4.99",
+    url: "https://www.paynow.co.zw/Payment/Link/?q=c2VhcmNoPXJ1ZGR5Y2hhbml3YTc3NyU0MGdtYWlsLmNvbSZhbW91bnQ9NC45OSZyZWZlcmVuY2U9Jmw9MQ%3d%3d",
+  },
+  {
+    coins: 100,
+    amount: "$0.99",
+    url: "https://www.paynow.co.zw/Payment/Link/?q=c2VhcmNoPXJ1ZGR5Y2hhbml3YTc3NyU0MGdtYWlsLmNvbSZhbW91bnQ9MC45OSZyZWZyZW5jZT0mbD0x%3d%3d",
+  },
+];
+
+const money = (n: number) =>
+  n >= 1_000_000
+    ? `${(n / 1_000_000).toFixed(1)}M`
+    : n >= 1_000
+      ? `${(n / 1_000).toFixed(n % 1_000 ? 1 : 0)}K`
+      : String(n);
+
+function normalizeShow(x: any): Story {
+  const firstEpisode =
+    x?.seasons?.[0]?.episodes?.[0] ??
+    x?.episodes?.[0] ??
+    null;
+
+  const serverVideoUrl =
+    x?.videoUrl ??
+    firstEpisode?.videoUrl ??
+    firstEpisode?.url ??
+    undefined;
+
+  const serverAudioUrl =
+    x?.audioUrl ??
+    firstEpisode?.audioUrl ??
+    undefined;
+
+  const episodeCount =
+    typeof x?.episodes === "number"
+      ? x.episodes
+      : Array.isArray(x?.episodes)
+        ? x.episodes.length
+        : Array.isArray(x?.seasons)
+          ? x.seasons.reduce(
+              (total: number, season: any) =>
+                total + (Array.isArray(season?.episodes) ? season.episodes.length : 0),
+              0
+            )
+          : 1;
+
+  // Artwork priority: real show/actor thumbnail from the server first.
+  // The blue fallback is only used when the server has no artwork at all.
+  const image =
+    typeof x?.thumbnail === "string" && x.thumbnail.trim()
+      ? x.thumbnail.trim()
+      : typeof x?.poster === "string" && x.poster.trim()
+        ? x.poster.trim()
+        : typeof firstEpisode?.thumbnail === "string" && firstEpisode.thumbnail.trim()
+          ? firstEpisode.thumbnail.trim()
+          : typeof firstEpisode?.poster === "string" && firstEpisode.poster.trim()
+            ? firstEpisode.poster.trim()
+            : typeof x?.cover === "string" && x.cover.trim()
+              ? x.cover.trim()
+              : typeof x?.image === "string" && x.image.trim()
+                ? x.image.trim()
+                : FALLBACK_IMAGE;
+
+  return {
+    id: String(x?.id ?? x?._id ?? Date.now()),
+    title: x?.title ?? "Untitled",
+    genre: x?.genre ?? "Drama",
+    author: x?.author ?? x?.creator ?? "Unknown",
+    creator: x?.creator ?? x?.author ?? "Unknown Creator",
+    description: x?.description ?? "",
+    image,
+    plays: Number(x?.plays ?? x?.views ?? 0),
+    likes: Number(x?.likes ?? 0),
+    rating: Number(x?.rating ?? 0),
+    episodes: Math.max(1, episodeCount),
+    lockedFrom: Number(x?.lockedFrom ?? 2),
+    duration: Number(x?.duration ?? firstEpisode?.duration ?? 20),
+    audioUrl: serverAudioUrl,
+    videoUrl: serverVideoUrl,
+    likedBy: Array.isArray(x?.likedBy) ? x.likedBy.map(String) : [],
+    raw: x,
+  };
+}
+
+async function api<T = any>(
+  path: string,
+  options: RequestInit = {},
+  token?: string | null
+): Promise<T> {
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    ...(options.headers as Record<string, string> | undefined),
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const response = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers,
+  });
+
+  const text = await response.text();
+  let data: any = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    data = { message: text };
+  }
+
+  if (!response.ok) {
+    throw new Error(data?.error || data?.message || `Request failed (${response.status})`);
+  }
+
+  return data as T;
+}
+
+function Header({
+  title,
+  onBack,
+  onAI,
+  onCoins,
+  coins,
+}: {
+  title: string;
+  onBack?: () => void;
+  onAI?: () => void;
+  onCoins?: () => void;
+  coins: number;
+}) {
+  return (
+    <View style={styles.header}>
+      <View style={styles.headerLeft}>
+        {onBack ? (
+          <Pressable onPress={onBack} style={styles.iconButton}>
+            <Text style={styles.iconText}>‹</Text>
+          </Pressable>
+        ) : (
+          <Text style={styles.brand}>PR</Text>
+        )}
+        <Text style={styles.headerTitle}>{title}</Text>
+      </View>
+      <View style={styles.headerRight}>
+        {onAI && (
+          <Pressable onPress={onAI} style={styles.headerPill}>
+            <Text style={styles.headerPillText}>AI</Text>
+          </Pressable>
+        )}
+        {onCoins && (
+          <Pressable onPress={onCoins} style={styles.coinPill}>
+            <Text>💎</Text>
+            <Text style={styles.coinText}>{money(coins)}</Text>
+          </Pressable>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function BottomNav({
+  active,
+  go,
+}: {
+  active: Screen;
+  go: (s: Screen) => void;
+}) {
+  const items: { key: Screen; icon: string; label: string }[] = [
+    { key: "home", icon: "⌂", label: "Home" },
+    { key: "trending", icon: "↗", label: "Trending" },
+    { key: "library", icon: "▣", label: "Library" },
+    { key: "profile", icon: "●", label: "Profile" },
+  ];
+
+  return (
+    <View style={styles.bottomNav}>
+      {items.map((item) => (
+        <Pressable
+          key={item.key}
+          onPress={() => go(item.key)}
+          style={styles.navItem}
+        >
+          <Text style={[styles.navIcon, active === item.key && styles.navActive]}>
+            {item.icon}
+          </Text>
+          <Text style={[styles.navLabel, active === item.key && styles.navActive]}>
+            {item.label}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+function SectionTitle({
+  title,
+  onPress,
+}: {
+  title: string;
+  onPress?: () => void;
+}) {
+  return (
+    <View style={styles.sectionTitle}>
+      <Text style={styles.sectionTitleText}>{title}</Text>
+      {onPress && (
+        <Pressable onPress={onPress}>
+          <Text style={styles.linkText}>See all</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+function AnalyticsCard({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.analyticsCard}>
+      <Text style={styles.analyticsValue}>{value}</Text>
+      <Text style={styles.analyticsLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function StoryCard({
+  story,
+  onPress,
+}: {
+  story: Story;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable onPress={onPress} style={styles.storyCard}>
+      <Image source={{ uri: story.image }} style={styles.storyImage} />
+      <View style={styles.storyGradient} />
+      <View style={styles.storyCardText}>
+        <Text style={styles.storyGenre}>{story.genre.toUpperCase()}</Text>
+        <Text style={styles.storyTitle} numberOfLines={2}>
+          {story.title}
+        </Text>
+        <Text style={styles.storyMeta}>
+          {money(story.plays)} plays · ⭐ {story.rating || "—"}
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
+
+function StoryRow({
+  story,
+  onPress,
+}: {
+  story: Story;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable onPress={onPress} style={styles.storyRow}>
+      <Image source={{ uri: story.image }} style={styles.rowImage} />
+      <View style={styles.rowInfo}>
+        <Text style={styles.rowTitle} numberOfLines={1}>{story.title}</Text>
+        <Text style={styles.muted}>{story.genre} · {story.episodes} episodes</Text>
+        <Text style={styles.muted}>{money(story.plays)} plays</Text>
+      </View>
+      <Text style={styles.chevron}>›</Text>
+    </Pressable>
+  );
+}
+
+function EmptyState({
+  title,
+  text,
+  action,
+}: {
+  title: string;
+  text: string;
+  action?: { label: string; onPress: () => void };
+}) {
+  return (
+    <View style={styles.emptyState}>
+      <Text style={styles.emptyIcon}>◌</Text>
+      <Text style={styles.emptyTitle}>{title}</Text>
+      <Text style={styles.mutedCenter}>{text}</Text>
+      {action && (
+        <Pressable style={styles.primaryButton} onPress={action.onPress}>
+          <Text style={styles.primaryButtonText}>{action.label}</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+function HomeScreen({
+  stories,
+  openStory,
+  go,
+  coins,
+}: {
+  stories: Story[];
+  openStory: (s: Story) => void;
+  go: (s: Screen) => void;
+  coins: number;
+}) {
+  const featured = stories[0];
+  return (
+    <SafeAreaView style={styles.safe}>
+      <Header
+        title="Pocket Rivals"
+        onAI={() => go("ai")}
+        onCoins={() => go("coins")}
+        coins={coins}
+      />
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.hero}>
+          <Image source={{ uri: featured?.image || FALLBACK_IMAGE }} style={styles.heroImage} />
+          <View style={styles.heroOverlay} />
+          <View style={styles.heroContent}>
+            <Text style={styles.heroEyebrow}>FEATURED ORIGINAL</Text>
+            <Text style={styles.heroTitle}>{featured?.title || "Welcome to Pocket Rivals"}</Text>
+            <Text style={styles.heroDescription} numberOfLines={3}>
+              {featured?.description || "Watch stories, discover creators and explore AI video originals."}
+            </Text>
+            {featured && (
+              <Pressable style={styles.primaryButton} onPress={() => openStory(featured)}>
+                <Text style={styles.primaryButtonText}>▶ Watch now</Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
+
+        <SectionTitle title="For You" />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {stories.map((s) => (
+            <StoryCard key={s.id} story={s} onPress={() => openStory(s)} />
+          ))}
+        </ScrollView>
+
+        <SectionTitle title="Trending" onPress={() => go("trending")} />
+        {stories.slice(0, 4).map((s) => (
+          <StoryRow key={s.id} story={s} onPress={() => openStory(s)} />
+        ))}
+
+        <SectionTitle title="Community" />
+        <Pressable style={styles.communityBanner} onPress={() => go("community")}>
+          <View>
+            <Text style={styles.communityTitle}>Meet the creators</Text>
+            <Text style={styles.muted}>Follow, comment and discover new stories.</Text>
+          </View>
+          <Text style={styles.chevron}>›</Text>
+        </Pressable>
+      </ScrollView>
+      <BottomNav active="home" go={go} />
+    </SafeAreaView>
+  );
+}
+
+function TrendingScreen({
+  stories,
+  openStory,
+  go,
+  coins,
+}: {
+  stories: Story[];
+  openStory: (s: Story) => void;
+  go: (s: Screen) => void;
+  coins: number;
+}) {
+  return (
+    <SafeAreaView style={styles.safe}>
+      <Header title="Trending" onAI={() => go("ai")} onCoins={() => go("coins")} coins={coins} />
+      <FlatList
+        data={stories}
+        keyExtractor={(x) => x.id}
+        contentContainerStyle={styles.listContent}
+        renderItem={({ item }) => <StoryRow story={item} onPress={() => openStory(item)} />}
+        ListHeaderComponent={
+          <View style={styles.listHeader}>
+            <Text style={styles.pageTitle}>What's hot</Text>
+            <Text style={styles.muted}>Real engagement from your server will appear here.</Text>
+          </View>
+        }
+      />
+      <BottomNav active="trending" go={go} />
+    </SafeAreaView>
+  );
+}
+
+function LibraryScreen({
+  stories,
+  saved,
+  downloaded,
+  openStory,
+  go,
+  coins,
+}: {
+  stories: Story[];
+  saved: Record<string, boolean>;
+  downloaded: Record<string, boolean>;
+  openStory: (s: Story) => void;
+  go: (s: Screen) => void;
+  coins: number;
+}) {
+  const savedStories = stories.filter((s) => saved[s.id]);
+  const downloadedStories = stories.filter((s) => downloaded[s.id]);
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <Header title="Library" onCoins={() => go("coins")} coins={coins} />
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <SectionTitle title="Watch later" />
+        {savedStories.length ? savedStories.map((s) => (
+          <StoryRow key={s.id} story={s} onPress={() => openStory(s)} />
+        )) : (
+          <EmptyState title="Nothing saved yet" text="Save stories and they will appear here." />
+        )}
+
+        <SectionTitle title="Downloads" onPress={() => go("downloads")} />
+        {downloadedStories.length ? downloadedStories.map((s) => (
+          <StoryRow key={s.id} story={s} onPress={() => openStory(s)} />
+        )) : (
+          <EmptyState title="No downloads" text="Downloaded stories will appear here." />
+        )}
+      </ScrollView>
+      <BottomNav active="library" go={go} />
+    </SafeAreaView>
+  );
+}
+
+function ProfileScreen({
+  user,
+  go,
+  coins,
+  logout,
+}: {
+  user: User | null;
+  go: (s: Screen) => void;
+  coins: number;
+  logout: () => void;
+}) {
+  if (!user) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <Header title="Profile" onCoins={() => go("coins")} coins={coins} />
+        <EmptyState
+          title="Create your profile"
+          text="Register or log in to like, comment, follow creators and use your wallet."
+          action={{ label: "Register / Login", onPress: () => go("register") }}
+        />
+        <BottomNav active="profile" go={go} />
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <Header title="Profile" onCoins={() => go("coins")} coins={coins} />
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.profileHero}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{user.username.slice(0, 1).toUpperCase()}</Text>
+          </View>
+          <Text style={styles.profileName}>@{user.username}</Text>
+          <Text style={styles.muted}>{user.email || "Pocket Rivals member"}</Text>
+        </View>
+
+        <View style={styles.profileGrid}>
+          <Pressable style={styles.profileTile} onPress={() => go("downloads")}>
+            <Text style={styles.tileIcon}>↓</Text>
+            <Text style={styles.tileText}>Downloads</Text>
+          </Pressable>
+          <Pressable style={styles.profileTile} onPress={() => go("notifications")}>
+            <Text style={styles.tileIcon}>♢</Text>
+            <Text style={styles.tileText}>Notifications</Text>
+          </Pressable>
+          <Pressable style={styles.profileTile} onPress={() => go("creator")}>
+            <Text style={styles.tileIcon}>✦</Text>
+            <Text style={styles.tileText}>Creator</Text>
+          </Pressable>
+          <Pressable style={styles.profileTile} onPress={() => go("settings")}>
+            <Text style={styles.tileIcon}>⚙</Text>
+            <Text style={styles.tileText}>Settings</Text>
+          </Pressable>
+        </View>
+
+        <Pressable style={styles.secondaryButton} onPress={logout}>
+          <Text style={styles.secondaryButtonText}>Log out</Text>
+        </Pressable>
+      </ScrollView>
+      <BottomNav active="profile" go={go} />
+    </SafeAreaView>
+  );
+}
+
+function SearchScreen({
+  stories,
+  query,
+  setQuery,
+  openStory,
+  go,
+  coins,
+}: {
+  stories: Story[];
+  query: string;
+  setQuery: (v: string) => void;
+  openStory: (s: Story) => void;
+  go: (s: Screen) => void;
+  coins: number;
+}) {
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return stories;
+    return stories.filter((s) =>
+      [s.title, s.genre, s.author, s.creator].some((x) =>
+        x.toLowerCase().includes(q)
+      )
+    );
+  }, [query, stories]);
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <Header title="Search" onBack={() => go("home")} coins={coins} />
+      <View style={styles.searchBox}>
+        <Text style={styles.searchIcon}>⌕</Text>
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          autoFocus
+          placeholder="Search stories, genres or creators"
+          placeholderTextColor="#777"
+          style={styles.searchInput}
+          returnKeyType="search"
+        />
+        {query.length > 0 && (
+          <Pressable onPress={() => setQuery("")}>
+            <Text style={styles.muted}>Clear</Text>
+          </Pressable>
+        )}
+      </View>
+      <FlatList
+        data={results}
+        keyExtractor={(x) => x.id}
+        contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
+        renderItem={({ item }) => <StoryRow story={item} onPress={() => openStory(item)} />}
+        ListEmptyComponent={<EmptyState title="No results" text="Try another search." />}
+      />
+    </SafeAreaView>
+  );
+}
+
+function DetailScreen({
+  story,
+  liked,
+  saved,
+  followed,
+  onLike,
+  onSave,
+  onFollow,
+  openComments,
+  openPlayer,
+  openCreator,
+  go,
+  coins,
+}: {
+  story: Story;
+  liked: boolean;
+  saved: boolean;
+  followed: boolean;
+  onLike: () => void;
+  onSave: () => void;
+  onFollow: () => void;
+  openComments: () => void;
+  openPlayer: (episode: number) => void;
+  openCreator: () => void;
+  go: (s: Screen) => void;
+  coins: number;
+}) {
+  return (
+    <SafeAreaView style={styles.safe}>
+      <Header title={story.title} onBack={() => go("home")} onCoins={() => go("coins")} coins={coins} />
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Image source={{ uri: story.image }} style={styles.detailImage} />
+        <Text style={styles.detailGenre}>{story.genre.toUpperCase()}</Text>
+        <Text style={styles.detailTitle}>{story.title}</Text>
+        <Text style={styles.muted}>By {story.author} · {story.creator}</Text>
+        <Text style={styles.detailDescription}>{story.description}</Text>
+
+        <View style={styles.actionRow}>
+          <Pressable style={styles.actionButton} onPress={onLike}>
+            <Text style={styles.actionIcon}>{liked ? "♥" : "♡"}</Text>
+            <Text style={styles.actionLabel}>{liked ? "Liked" : "Like"}</Text>
+          </Pressable>
+          <Pressable style={styles.actionButton} onPress={onSave}>
+            <Text style={styles.actionIcon}>{saved ? "✓" : "+"}</Text>
+            <Text style={styles.actionLabel}>{saved ? "Saved" : "Save"}</Text>
+          </Pressable>
+          <Pressable style={styles.actionButton} onPress={openComments}>
+            <Text style={styles.actionIcon}>☷</Text>
+            <Text style={styles.actionLabel}>Comments</Text>
+          </Pressable>
+          <Pressable style={styles.actionButton} onPress={onFollow}>
+            <Text style={styles.actionIcon}>●</Text>
+            <Text style={styles.actionLabel}>{followed ? "Following" : "Follow"}</Text>
+          </Pressable>
+        </View>
+
+        <Pressable style={styles.primaryButton} onPress={() => openPlayer(1)}>
+          <Text style={styles.primaryButtonText}>▶ Start episode 1</Text>
+        </Pressable>
+
+        <SectionTitle title={`Episodes (${story.episodes})`} />
+        {Array.from({ length: Math.min(story.episodes, 20) }, (_, i) => i + 1).map((ep) => {
+          const locked = ep >= story.lockedFrom;
+          return (
+            <Pressable key={ep} style={styles.episodeRow} onPress={() => openPlayer(ep)}>
+              <View style={styles.episodeNumber}>
+                <Text style={styles.episodeNumberText}>{ep}</Text>
+              </View>
+              <View style={styles.episodeInfo}>
+                <Text style={styles.episodeTitle}>Episode {ep}</Text>
+                <Text style={styles.muted}>{locked ? "🔒 Premium episode · 50 coins" : "Free episode"}</Text>
+              </View>
+              <Text style={styles.chevron}>{locked ? "🔒" : "▶"}</Text>
+            </Pressable>
+          );
+        })}
+
+        <Pressable style={styles.communityBanner} onPress={openCreator}>
+          <View>
+            <Text style={styles.communityTitle}>{story.creator}</Text>
+            <Text style={styles.muted}>View creator profile</Text>
+          </View>
+          <Text style={styles.chevron}>›</Text>
+        </Pressable>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function VideoScreen({
+  story,
+  episode,
+  onBack,
+  onNext,
+  onCoins,
+  coins,
+}: {
+  story: Story;
+  episode: number;
+  onBack: () => void;
+  onNext: () => void;
+  onCoins: () => void;
+  coins: number;
+}) {
+  const source = story.videoUrl || VIDEO_URL;
+  const player = useVideoPlayer(source, (p) => {
+    p.loop = false;
+    p.staysActiveInBackground = false;
+  });
+
+  useEffect(() => {
+    try {
+      player.play();
+    } catch {}
+    return () => {
+      try {
+        player.pause();
+      } catch {}
+    };
+  }, [player, source]);
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.videoHeader}>
+        <Pressable onPress={onBack} style={styles.iconButton}>
+          <Text style={styles.iconText}>‹</Text>
+        </Pressable>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.videoHeaderTitle}>{story.title}</Text>
+          <Text style={styles.muted}>Episode {episode}</Text>
+        </View>
+        <Pressable onPress={onCoins} style={styles.coinPill}>
+          <Text>💎</Text><Text style={styles.coinText}>{money(coins)}</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.videoContainer}>
+        <VideoView
+          player={player}
+          style={styles.videoPlayerView}
+          nativeControls
+          contentFit="contain"
+          allowsFullscreen
+          allowsPictureInPicture
+        />
+      </View>
+
+      <View style={styles.playerBottom}>
+        <Text style={styles.playerTitle}>{story.title}</Text>
+        <Text style={styles.muted}>Episode {episode}</Text>
+        <Pressable style={styles.primaryButton} onPress={onNext}>
+          <Text style={styles.primaryButtonText}>Next episode ›</Text>
+        </Pressable>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function AudioScreen({
+  story,
+  onBack,
+  coins,
+}: {
+  story: Story;
+  onBack: () => void;
+  coins: number;
+}) {
+  const source = story.audioUrl || AUDIO_URL;
+  const player = useAudioPlayer(source, {
+    updateInterval: 500,
+    downloadFirst: false,
+    preferredForwardBufferDuration: 15,
+  });
+  const status = useAudioPlayerStatus(player);
+
+  useEffect(() => {
+    setAudioModeAsync({
+      playsInSilentMode: true,
+      shouldPlayInBackground: false,
+      shouldRouteThroughEarpiece: false,
+    }).catch(() => {});
+  }, []);
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <Header title="Audio" onBack={onBack} coins={coins} />
+      <View style={styles.audioScreen}>
+        <Image source={{ uri: story.image }} style={styles.audioArtwork} />
+        <Text style={styles.audioTitle}>{story.title}</Text>
+        <Text style={styles.muted}>Episode 1 · {story.author}</Text>
+        <View style={styles.progressTrack}>
+          <View
+            style={[
+              styles.progressFill,
+              {
+                width: `${status.duration ? Math.min(100, (status.currentTime / status.duration) * 100) : 0}%`,
+              },
+            ]}
+          />
+        </View>
+        <View style={styles.timeRow}>
+          <Text style={styles.muted}>{Math.floor(status.currentTime || 0)}s</Text>
+          <Text style={styles.muted}>{Math.floor(status.duration || 0)}s</Text>
+        </View>
+        <Pressable
+          style={styles.playCircle}
+          onPress={() => (status.playing ? player.pause() : player.play())}
+        >
+          <Text style={styles.playCircleText}>{status.playing ? "Ⅱ" : "▶"}</Text>
+        </Pressable>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function CommentsScreen({
+  comments,
+  text,
+  setText,
+  onSend,
+  liked,
+  onLike,
+  onBack,
+  user,
+}: {
+  comments: CommentItem[];
+  text: string;
+  setText: (v: string) => void;
+  onSend: () => void;
+  liked: Record<string, boolean>;
+  onLike: (id: string) => void;
+  onBack: () => void;
+  user: User | null;
+}) {
+  return (
+    <SafeAreaView style={styles.safe}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
+      >
+        <Header title="Comments" onBack={onBack} coins={0} />
+        <FlatList
+          data={comments}
+          keyExtractor={(x) => x.id}
+          contentContainerStyle={styles.commentsList}
+          keyboardShouldPersistTaps="handled"
+          renderItem={({ item }) => (
+            <View style={styles.commentRow}>
+              <View style={styles.commentAvatar}>
+                <Text>{item.user.slice(0, 1).toUpperCase()}</Text>
+              </View>
+              <View style={styles.commentBody}>
+                <Text style={styles.commentUser}>{item.user}</Text>
+                <Text style={styles.commentText}>{item.text}</Text>
+              </View>
+              <Pressable onPress={() => onLike(item.id)} style={styles.commentLike}>
+                <Text style={styles.commentHeart}>{liked[item.id] ? "♥" : "♡"}</Text>
+                <Text style={styles.muted}>{item.likes}</Text>
+              </Pressable>
+            </View>
+          )}
+          ListEmptyComponent={<EmptyState title="No comments yet" text="Be the first to say something." />}
+        />
+
+        <View style={styles.commentComposer}>
+          <TextInput
+            value={text}
+            onChangeText={setText}
+            placeholder={user ? "Add a comment..." : "Log in to comment"}
+            placeholderTextColor="#777"
+            style={styles.commentInput}
+            editable={!!user}
+            multiline
+          />
+          <Pressable
+            style={[styles.sendButton, !user && styles.disabled]}
+            onPress={onSend}
+            disabled={!user}
+          >
+            <Text style={styles.sendButtonText}>Send</Text>
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+function CoinsScreen({
+  packages,
+  coins,
+  onBuy,
+  onBack,
+  loading,
+  go,
+}: {
+  packages: CoinPackage[];
+  coins: number;
+  onBuy: (p: CoinPackage) => void;
+  onBack: () => void;
+  loading: boolean;
+  go: (s: Screen) => void;
+}) {
+  return (
+    <SafeAreaView style={styles.safe}>
+      <Header title="Coins" onBack={onBack} coins={coins} />
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.walletCard}>
+          <Text style={styles.walletLabel}>YOUR BALANCE</Text>
+          <Text style={styles.walletCoins}>💎 {coins}</Text>
+          <Text style={styles.muted}>Coins are server-controlled. Buying does not credit the wallet until payment is confirmed.</Text>
+        </View>
+
+        <SectionTitle title="Choose a package" />
+        {(packages.length ? packages : DEFAULT_PACKAGES).map((p) => (
+          <Pressable key={`${p.coins}-${p.amount}`} style={styles.coinPackage} onPress={() => onBuy(p)}>
+            <View>
+              <Text style={styles.packageCoins}>💎 {money(p.coins)} coins</Text>
+              <Text style={styles.muted}>Payment: {p.amount}</Text>
+            </View>
+            <View style={styles.buyButton}>
+              {loading ? <ActivityIndicator /> : <Text style={styles.buyButtonText}>Buy</Text>}
+            </View>
+          </Pressable>
+        ))}
+
+        <Pressable style={styles.secondaryButton} onPress={() => go("rewards")}>
+          <Text style={styles.secondaryButtonText}>Daily rewards</Text>
+        </Pressable>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function RewardsScreen({
+  onBack,
+  user,
+  coins,
+  adReady,
+  adLoading,
+  onWatchAd,
+}: {
+  onBack: () => void;
+  user: User | null;
+  coins: number;
+  adReady: boolean;
+  adLoading: boolean;
+  onWatchAd: () => void;
+}) {
+  return (
+    <SafeAreaView style={styles.safe}>
+      <Header title="Rewards" onBack={onBack} coins={coins} />
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.rewards}>
+          <Text style={styles.rewardIcon}>🎁</Text>
+          <Text style={styles.pageTitle}>Watch & Earn</Text>
+          <Text style={styles.mutedCenter}>
+            Watch a real rewarded ad and earn coins after LevelPlay confirms the reward.
+          </Text>
+
+          <View style={styles.challengeCard}>
+            <Text style={styles.challengeTitle}>Rewarded video</Text>
+            <Text style={styles.muted}>Status: {adLoading ? "Loading ad…" : adReady ? "Ready" : "Preparing…"}</Text>
+            <Text style={styles.muted}>Your wallet is verified by the Pocket Rivals server.</Text>
+          </View>
+
+          <Pressable
+            style={[styles.primaryButton, (!user || !adReady || adLoading) && styles.disabled]}
+            disabled={!user || !adReady || adLoading}
+            onPress={onWatchAd}
+          >
+            {adLoading ? <ActivityIndicator /> : <Text style={styles.primaryButtonText}>▶ Watch ad for coins</Text>}
+          </Pressable>
+
+          {!user && (
+            <Text style={styles.mutedCenter}>Log in first so the server can credit the correct wallet.</Text>
+          )}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function AIScreen({
+  messages,
+  input,
+  setInput,
+  onSend,
+  loading,
+  error,
+  onBack,
+}: {
+  messages: AIMessage[];
+  input: string;
+  setInput: (v: string) => void;
+  onSend: () => void;
+  loading: boolean;
+  error: string;
+  onBack: () => void;
+}) {
+  return (
+    <SafeAreaView style={styles.safe}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <Header title="Pocket AI" onBack={onBack} coins={0} />
+        <FlatList
+          data={messages}
+          keyExtractor={(x) => x.id}
+          contentContainerStyle={styles.aiList}
+          keyboardShouldPersistTaps="handled"
+          renderItem={({ item }) => (
+            <View
+              style={[
+                styles.aiBubble,
+                item.role === "user" ? styles.aiUser : styles.aiAssistant,
+              ]}
+            >
+              <Text style={styles.aiRole}>{item.role === "user" ? "You" : "Pocket AI"}</Text>
+              <Text style={styles.aiText}>{item.text}</Text>
+            </View>
+          )}
+        />
+        {!!error && <Text style={styles.errorText}>{error}</Text>}
+        <View style={styles.aiComposer}>
+          <TextInput
+            value={input}
+            onChangeText={setInput}
+            placeholder="Ask Pocket AI..."
+            placeholderTextColor="#777"
+            style={styles.aiInput}
+            multiline
+            editable={!loading}
+            returnKeyType="send"
+            onSubmitEditing={onSend}
+          />
+          <Pressable
+            style={[styles.sendButton, loading && styles.disabled]}
+            onPress={onSend}
+            disabled={loading}
+          >
+            {loading ? <ActivityIndicator /> : <Text style={styles.sendButtonText}>↑</Text>}
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+function RegisterScreen({
+  onBack,
+  onSubmit,
+  onLogin,
+  mode,
+  setMode,
+  username,
+  setUsername,
+  email,
+  setEmail,
+  password,
+  setPassword,
+  loading,
+}: {
+  onBack: () => void;
+  onSubmit: () => void;
+  onLogin: () => void;
+  mode: "register" | "login";
+  setMode: (v: "register" | "login") => void;
+  username: string;
+  setUsername: (v: string) => void;
+  email: string;
+  setEmail: (v: string) => void;
+  password: string;
+  setPassword: (v: string) => void;
+  loading: boolean;
+}) {
+  const isLogin = mode === "login";
+  return (
+    <SafeAreaView style={styles.safe}>
+      <Header title={isLogin ? "Log in" : "Create account"} onBack={onBack} coins={0} />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <ScrollView contentContainerStyle={styles.form}>
+          <Text style={styles.pageTitle}>{isLogin ? "Welcome back" : "Create your account"}</Text>
+          <Text style={styles.muted}>
+            {isLogin
+              ? "Your account is saved on this device, so you won't need to log in every time."
+              : "Create an account once. Pocket Rivals will remember your signed-in session."}
+          </Text>
+
+          {!isLogin && (
+            <>
+              <Text style={styles.fieldLabel}>Username</Text>
+              <TextInput
+                value={username}
+                onChangeText={setUsername}
+                placeholder="Choose a username"
+                placeholderTextColor="#666"
+                style={styles.formInput}
+                autoCapitalize="none"
+              />
+            </>
+          )}
+
+          <Text style={styles.fieldLabel}>Email</Text>
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            placeholder="you@example.com"
+            placeholderTextColor="#666"
+            style={styles.formInput}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+          />
+
+          <Text style={styles.fieldLabel}>Password</Text>
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            placeholder="At least 6 characters"
+            placeholderTextColor="#666"
+            style={styles.formInput}
+            secureTextEntry
+            autoComplete={isLogin ? "current-password" : "new-password"}
+          />
+
+          <Pressable
+            style={styles.primaryButton}
+            onPress={isLogin ? onLogin : onSubmit}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator />
+            ) : (
+              <Text style={styles.primaryButtonText}>{isLogin ? "Log in" : "Create account"}</Text>
+            )}
+          </Pressable>
+
+          <Pressable
+            style={styles.secondaryButton}
+            onPress={() => setMode(isLogin ? "register" : "login")}
+            disabled={loading}
+          >
+            <Text style={styles.secondaryButtonText}>
+              {isLogin ? "Need an account? Create one" : "Already have an account? Log in"}
+            </Text>
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+function CreatorScreen({
+  story,
+  following,
+  onToggleFollow,
+  onBack,
+  go,
+}: {
+  story: Story;
+  following: boolean;
+  onToggleFollow: () => void;
+  onBack: () => void;
+  go: (s: Screen) => void;
+}) {
+  return (
+    <SafeAreaView style={styles.safe}>
+      <Header title="Creator" onBack={onBack} coins={0} />
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.profileHero}>
+          <View style={styles.creatorAvatar}>
+            <Text style={styles.avatarText}>{story.creator.slice(0, 1).toUpperCase()}</Text>
+          </View>
+          <Text style={styles.profileName}
