@@ -1,6 +1,3 @@
-const LEVELPLAY_APP_KEY = "c2a26252-65fe-40ad-a904-31378e98a611";
-const LEVELPLAY_REWARDED_AD_UNIT_ID = "DefaultRewardedAd";
-const LEVELPLAY_INTERSTITIAL_AD_UNIT_ID = "DefaultInterstitialAd";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
@@ -47,21 +44,11 @@ const API_URL =
 
 const AI_MODEL = "gemini-3.7-flash";
 
-const LEVELPLAY_APP_KEY =
-  process.env.EXPO_PUBLIC_LEVELPLAY_APP_KEY?.trim() ||
-  "PUT_YOUR_UNITY_LEVELPLAY_APP_KEY_HERE";
-const LEVELPLAY_REWARDED_AD_UNIT_ID =
-  process.env.EXPO_PUBLIC_LEVELPLAY_REWARDED_AD_UNIT_ID?.trim() ||
-  "PUT_YOUR_REWARDED_AD_UNIT_ID_HERE";
-const LEVELPLAY_INTERSTITIAL_AD_UNIT_ID =
-  process.env.EXPO_PUBLIC_LEVELPLAY_INTERSTITIAL_AD_UNIT_ID?.trim() ||
-  "PUT_YOUR_INTERSTITIAL_AD_UNIT_ID_HERE";
-const LEVELPLAY_REWARDED_PLACEMENT =
-  process.env.EXPO_PUBLIC_LEVELPLAY_REWARDED_PLACEMENT?.trim() ||
-  "PocketRivalsReward";
-const LEVELPLAY_INTERSTITIAL_PLACEMENT =
-  process.env.EXPO_PUBLIC_LEVELPLAY_INTERSTITIAL_PLACEMENT?.trim() ||
-  "PocketRivalsBetweenEpisodes";
+const LEVELPLAY_APP_KEY = "c2a26252-65fe-40ad-a904-31378e98a611";
+const LEVELPLAY_REWARDED_AD_UNIT_ID = "DefaultRewardedAd";
+const LEVELPLAY_INTERSTITIAL_AD_UNIT_ID = "DefaultInterstitialAd";
+const LEVELPLAY_REWARDED_PLACEMENT = "PocketRivalsReward";
+const LEVELPLAY_INTERSTITIAL_PLACEMENT = "PocketRivalsBetweenEpisodes";
 
 type Screen =
   | "home" | "trending" | "audio" | "video" | "library" | "profile"
