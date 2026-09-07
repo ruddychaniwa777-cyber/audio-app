@@ -1601,7 +1601,9 @@ export default function App() {
     setScreen(next);
   };
 
-  const back = () => setScreen(previousScreen || "home");
+  const back = () => {
+  setScreen((prev) => (prev && prev !== screen ? prev : "home"));
+};
 
   async function refreshWalletFromServer() {
     if (!token) return;
