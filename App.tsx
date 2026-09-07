@@ -1,3 +1,559 @@
+
+function createFashionLevel(level: number): Level {
+  const scenarios = [
+    {
+      story: "You are styling a celebrity for the Met Gala red carpet.",
+      choices: [
+        ["Crystal Gown", "Dazzling floor-length diamond dress.", "✨"],
+        ["Retro Velvet", "Vintage 90s glam look.", "🌹"],
+        ["Neon Streetwear", "Bold neon jacket and boots.", "⚡"],
+        ["Boho Chic", "Flowing floral maxi dress.", "🌸"],
+      ],
+      correct: level % 4,
+    },
+    {
+      story: "Paris Fashion Week: Choose your runway collection theme.",
+      choices: [
+        ["Parisian Chic", "Classic black trench and beret.", "🗼"],
+        ["Cyberpunk Glam", "Metallic silver and LED accessories.", "🤖"],
+        ["Pastel Dream", "Soft pink and lavender tulle.", "🩰"],
+      ],
+      correct: level % 3,
+    },
+  ];
+  const s = pick(scenarios, level);
+  return {
+    id: level,
+    game: "FASHION",
+    level,
+    title: `Fashion Star - Level ${level}`,
+    story: s.story,
+    choices: s.choices.map((c, i) => ({
+      id: i,
+      title: c[0],
+      description: c[1],
+      emoji: c[2],
+      correct: i === s.correct,
+      surprise: i === s.correct ? "The judges loved it! Trendsetter bonus unlocked." : "The critics found it a bit too bold for this season.",
+    })),
+    difficulty: getDifficulty(level),
+    coins: 20 + level,
+    xp: 35 + level,
+  };
+}
+
+function createRomanceLevel(level: number): Level {
+  const scenarios = [
+    {
+      story: "You receive a mysterious late-night text from your secret admirer.",
+      choices: [
+        ["Reply instantly", "Show how excited you are.", "💬"],
+        ["Play hard to get", "Wait a few hours to reply.", "⏳"],
+        ["Leave on read", "Keep them guessing.", "👀"],
+        ["Call them directly", "Talk it out right now.", "📞"],
+      ],
+      correct: (level + 1) % 4,
+    },
+    {
+      story: "Where should you go for your dream weekend first date?",
+      choices: [
+        ["Sunset Beach", "A romantic stroll by the ocean waves.", "🌅"],
+        ["Rooftop Café", "Stargazing with hot chocolate.", "☕"],
+        ["VIP Concert", "Front row tickets to your favorite artist.", "🎤"],
+      ],
+      correct: level % 3,
+    },
+  ];
+  const s = pick(scenarios, level);
+  return {
+    id: level,
+    game: "ROMANCE",
+    level,
+    title: `Romance Chapters - Level ${level}`,
+    story: s.story,
+    choices: s.choices.map((c, i) => ({
+      id: i,
+      title: c[0],
+      description: c[1],
+      emoji: c[2],
+      correct: i === s.correct,
+      surprise: i === s.correct ? "Sparks fly! Your relationship level increased." : "Awkward silence... but the drama continues!",
+    })),
+    difficulty: getDifficulty(level),
+    coins: 20 + level,
+    xp: 35 + level,
+  };
+}
+
+function createCafeLevel(level: number): Level {
+  const scenarios = [
+    {
+      story: "A famous food critic walks into your cozy bakery café.",
+      choices: [
+        ["Signature Macarons", "Handmade French rose macarons.", "🧁"],
+        ["Iced Caramel Latte", "Crafted with organic oat milk.", "☕"],
+        ["Matcha Cheesecake", "Rich Japanese green tea pastry.", "🍰"],
+        ["Fresh Croissants", "Warm butter pastries straight from the oven.", "🥐"],
+      ],
+      correct: level % 4,
+    },
+  ];
+  const s = pick(scenarios, level);
+  return {
+    id: level,
+    game: "CAFE",
+    level,
+    title: `Dream Café - Level ${level}`,
+    story: s.story,
+    choices: s.choices.map((c, i) => ({
+      id: i,
+      title: c[0],
+      description: c[1],
+      emoji: c[2],
+      correct: i === s.correct,
+      surprise: i === s.correct ? "Five-star review! Your café is trending." : "The order was a bit late, but customers still smiled.",
+    })),
+    difficulty: getDifficulty(level),
+    coins: 20 + level,
+    xp: 35 + level,
+  };
+}
+
+
+function ProceduralGamesScreen({
+  go,
+  coins,
+  setCoins,
+}: {
+  go: (s: Screen) => void;
+  coins: number;
+  setCoins: React.Dispatch<React.SetStateAction<number>>;
+}) {
+  const [selectedGame, setSelectedGame] = useState<GameType>("DOORS");
+  const [currentLevelNum, setCurrentLevelNum] = useState(1);
+  const [currentLevelData, setCurrentLevelData] = useState<Level>(generateLevel("DOORS", 1));
+  const [resultMessage, setResultMessage] = useState<string | null>(null);
+
+  const selectGame = (g: GameType) => {
+    setSelectedGame(g);
+    setCurrentLevelNum(1);
+    setCurrentLevelData(generateLevel(g, 1));
+    setResultMessage(null);
+  };
+
+  const changeLevel = (lvl: number) => {
+    const validLvl = Math.max(1, Math.min(2000, lvl));
+    setCurrentLevelNum(validLvl);
+    setCurrentLevelData(generateLevel(selectedGame, validLvl));
+    setResultMessage(null);
+  };
+
+  const handleChoice = (choice: Choice) => {
+    if (choice.correct) {
+      setCoins((c) => c + currentLevelData.coins);
+      setResultMessage(`🎉 Correct! You earned 🪙 ${currentLevelData.coins} coins! ${choice.surprise || ""}`);
+    } else {
+      setResultMessage(`💥 Wrong choice! ${choice.surprise || "Try again or watch ad/use coins to unlock."}`);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <Header title="🎮 20 Games x 2000 Levels" onBack={() => go("home")} coins={coins} />
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.profileHero}>
+          <Text style={{ color: "#34C759", fontSize: 12, fontWeight: "bold", marginBottom: 4 }}>ADVANCED PROCEDURAL ARENA</Text>
+          <Text style={styles.profileName}>{selectedGame} - Level {currentLevelNum}</Text>
+          <Text style={[styles.muted, { marginTop: 4 }]}>Difficulty: {currentLevelData.difficulty} • Reward: 🪙 {currentLevelData.coins}</Text>
+        </View>
+
+        <SectionTitle title="Select Game Universe" />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+          {GAMES.map((g) => (
+            <Pressable
+              key={g}
+              style={{
+                backgroundColor: selectedGame === g ? "#34C759" : "#1c1c1e",
+                paddingHorizontal: 16,
+                paddingVertical: 10,
+                borderRadius: 20,
+                marginRight: 8,
+              }}
+              onPress={() => selectGame(g)}
+            >
+              <Text style={{ color: selectedGame === g ? "#000" : "#fff", fontWeight: "bold", fontSize: 13 }}>{g}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+
+        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 16 }}>
+          <Pressable style={styles.secondaryButton} onPress={() => changeLevel(currentLevelNum - 1)}>
+            <Text style={styles.secondaryButtonText}>◀ Previous Level</Text>
+          </Pressable>
+          <Pressable style={styles.secondaryButton} onPress={() => changeLevel(currentLevelNum + 1)}>
+            <Text style={styles.secondaryButtonText}>Next Level ▶</Text>
+          </Pressable>
+        </View>
+
+        <View style={{ backgroundColor: "#1c1c1e", borderRadius: 12, padding: 16, marginBottom: 20 }}>
+          <Text style={{ color: "#ff9f0a", fontSize: 14, fontWeight: "bold", marginBottom: 6 }}>{currentLevelData.title}</Text>
+          <Text style={{ color: "#fff", fontSize: 16, lineHeight: 22, marginBottom: 16 }}>{currentLevelData.story}</Text>
+
+          {resultMessage && (
+            <View style={{ backgroundColor: "#2c2c2e", padding: 12, borderRadius: 8, marginBottom: 16 }}>
+              <Text style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}>{resultMessage}</Text>
+            </View>
+          )}
+
+          {currentLevelData.choices.map((choice) => (
+            <Pressable
+              key={choice.id}
+              style={{
+                backgroundColor: "#2c2c2e",
+                padding: 14,
+                borderRadius: 10,
+                marginBottom: 10,
+                borderWidth: 1,
+                borderColor: "#3a3a3c",
+              }}
+              onPress={() => handleChoice(choice)}
+            >
+              <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 15, marginBottom: 2 }}>
+                {choice.emoji} {choice.title}
+              </Text>
+              <Text style={{ color: "#8e8e93", fontSize: 13 }}>{choice.description}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+
+// ============================================================
+// POCKET RIVALS - 20 GAMES x 2,000+ LEVELS
+// Procedural Level Engine
+// ============================================================
+
+type GameType =
+  | "DOORS"
+  | "SURVIVAL"
+  | "ESCAPE"
+  | "MYSTERY"
+  | "HORROR"
+  | "TRAP"
+  | "BRIDGE"
+  | "TREASURE"
+  | "ALIEN"
+  | "ZOMBIE"
+  | "MIND"
+  | "ANIMAL"
+  | "TIME"
+  | "MAGIC"
+  | "ISLAND"
+  | "ROBBERY"
+  | "LAB"
+  | "NIGHT"
+  | "BOSS"
+  | "CHAOS"
+  | "FASHION"
+  | "ROMANCE"
+  | "CAFE";
+
+type Choice = {
+  id: number;
+  title: string;
+  description: string;
+  emoji: string;
+  correct: boolean;
+  surprise?: string;
+};
+
+type Level = {
+  id: number;
+  game: GameType;
+  level: number;
+  title: string;
+  story: string;
+  choices: Choice[];
+  difficulty: string;
+  coins: number;
+  xp: number;
+};
+
+function random(seed: number) {
+  const x = Math.sin(seed * 9999) * 10000;
+  return x - Math.floor(x);
+}
+
+function pick<T>(items: T[], seed: number): T {
+  return items[Math.floor(random(seed) * items.length)];
+}
+
+function getDifficulty(level: number) {
+  if (level <= 100) return "Easy";
+  if (level <= 500) return "Medium";
+  if (level <= 1000) return "Hard";
+  if (level <= 1500) return "Extreme";
+  return "IMPOSSIBLE";
+}
+
+function createDoorsLevel(level: number): Level {
+  const situations = [
+    {
+      story: "You must escape before the building collapses.",
+      choices: [
+        ["Burning House", "A room is filled with flames.", "🔥"],
+        ["Broken Rope", "A tiny rope hangs over a huge gap.", "🪢"],
+        ["Dark Tunnel", "You cannot see what is inside.", "🕳️"],
+        ["Wild Animal", "Something is moving in the darkness.", "🐺"],
+        ["Quiet Room", "Everything looks completely normal.", "🚪"],
+      ],
+      correct: 4,
+    },
+    {
+      story: "Five doors appear in an abandoned underground station.",
+      choices: [
+        ["Red Door", "You hear screaming behind it.", "🔴"],
+        ["Metal Door", "Electric sparks cover the handle.", "⚡"],
+        ["Wooden Door", "There are scratches everywhere.", "🚪"],
+        ["Glass Door", "Something is watching from inside.", "👁️"],
+        ["White Door", "There is absolutely no sound.", "⚪"],
+      ],
+      correct: 4,
+    },
+  ];
+  const situation = pick(situations, level);
+  const choices: Choice[] = situation.choices.map((c, i) => ({
+    id: i,
+    title: c[0],
+    description: c[1],
+    emoji: c[2],
+    correct: i === situation.correct,
+    surprise: i === situation.correct ? "It looked dangerous, but this was the unexpected safe choice." : "It looked possible, but something unexpected happens.",
+  }));
+  return {
+    id: level,
+    game: "DOORS",
+    level,
+    title: `Five Doors - Level ${level}`,
+    story: situation.story,
+    choices,
+    difficulty: getDifficulty(level),
+    coins: 10 + level,
+    xp: 20 + level,
+  };
+}
+
+function createSurvivalLevel(level: number): Level {
+  const scenarios = [
+    {
+      story: "A storm is approaching. You have seconds to choose.",
+      choices: [
+        ["Climb the tree", "Get above the flood.", "🌳"],
+        ["Hide underground", "Find an old basement.", "🕳️"],
+        ["Run to the road", "Try to reach civilization.", "🏃"],
+        ["Stay inside", "The building looks strong.", "🏠"],
+      ],
+      correct: 1,
+    },
+    {
+      story: "The ground begins shaking beneath you.",
+      choices: [
+        ["Run outside", "Move away from the building.", "🏃"],
+        ["Hide under table", "Protect yourself from falling objects.", "🪑"],
+        ["Use elevator", "Escape quickly.", "🛗"],
+        ["Open the windows", "Get some fresh air.", "🪟"],
+      ],
+      correct: 1,
+    },
+  ];
+  const s = pick(scenarios, level);
+  return {
+    id: level,
+    game: "SURVIVAL",
+    level,
+    title: `Survive - Level ${level}`,
+    story: s.story,
+    choices: s.choices.map((c, i) => ({
+      id: i,
+      title: c[0],
+      description: c[1],
+      emoji: c[2],
+      correct: i === s.correct,
+      surprise: i === s.correct ? "Your choice works... but something else is coming." : "The decision looked reasonable, but it fails.",
+    })),
+    difficulty: getDifficulty(level),
+    coins: 15 + level,
+    xp: 25 + level,
+  };
+}
+
+function createEscapeLevel(level: number): Level {
+  const locations = ["an abandoned hospital", "a locked prison", "an underground bunker", "a crashed spaceship", "an abandoned school", "a strange hotel", "a flooded tunnel", "a secret laboratory"];
+  const location = pick(locations, level);
+  const choices: Choice[] = [
+    { id: 0, title: "Window", description: "A broken window leads outside.", emoji: "🪟", correct: level % 4 === 0 },
+    { id: 1, title: "Vent", description: "A narrow ventilation tunnel.", emoji: "💨", correct: level % 4 === 1 },
+    { id: 2, title: "Main Door", description: "The obvious way out.", emoji: "🚪", correct: level % 4 === 2 },
+    { id: 3, title: "Hidden Door", description: "A barely visible door behind a shelf.", emoji: "🔐", correct: level % 4 === 3 },
+  ];
+  return {
+    id: level,
+    game: "ESCAPE",
+    level,
+    title: `Escape ${level}`,
+    story: `You are trapped inside ${location}. Find the way out.`,
+    choices,
+    difficulty: getDifficulty(level),
+    coins: 20 + level,
+    xp: 30 + level,
+  };
+}
+
+function createHorrorLevel(level: number): Level {
+  const horrors = [
+    "You hear someone breathing behind you.",
+    "Your phone camera shows a person standing behind you.",
+    "The lights suddenly turn off.",
+    "A child's voice comes from an empty room.",
+    "Someone knocks three times from inside the wall.",
+    "Your reflection stops copying you.",
+  ];
+  const horror = pick(horrors, level);
+  const choices = [
+    ["Turn around", "See what is behind you.", "👀"],
+    ["Run", "Get away immediately.", "🏃"],
+    ["Hide", "Find somewhere dark.", "🫣"],
+    ["Record", "Use your phone camera.", "📱"],
+    ["Stay still", "Don't make a sound.", "🤫"],
+  ];
+  const correct = (level * 7) % choices.length;
+  return {
+    id: level,
+    game: "HORROR",
+    level,
+    title: `Nightmare ${level}`,
+    story: horror,
+    choices: choices.map((c, i) => ({
+      id: i,
+      title: c[0],
+      description: c[1],
+      emoji: c[2],
+      correct: i === correct,
+      surprise: i === correct ? "You survived... but the real surprise happens after the choice." : "The decision triggers something unexpected.",
+    })),
+    difficulty: getDifficulty(level),
+    coins: 30 + level,
+    xp: 40 + level,
+  };
+}
+
+function generateLevel(game: GameType, level: number): Level {
+  if (level < 1) level = 1;
+  if (level > 2000) level = 2000;
+  if (game === "DOORS") return createDoorsLevel(level);
+  if (game === "FASHION") return createFashionLevel(level);
+  if (game === "ROMANCE") return createRomanceLevel(level);
+  if (game === "CAFE") return createCafeLevel(level);
+  if (game === "SURVIVAL") return createSurvivalLevel(level);
+  if (game === "ESCAPE") return createEscapeLevel(level);
+  if (game === "HORROR") return createHorrorLevel(level);
+
+  // Generic fallback for other 16 games
+  const themes = ["A mysterious event unfolds before your eyes.", "You must make a critical choice or face the consequences.", "A hidden path opens up with two mysterious options."];
+  const story = pick(themes, level);
+  const correct = level % 3;
+  return {
+    id: level,
+    game,
+    level,
+    title: `${game} - Level ${level}`,
+    story,
+    choices: [
+      { id: 0, title: "Path A", description: "Take the direct approach.", emoji: "⚡", correct: correct === 0 },
+      { id: 1, title: "Path B", description: "Take the cautious route.", emoji: "🛡️", correct: correct === 1 },
+      { id: 2, title: "Path C", description: "Take the secret passage.", emoji: "🔮", correct: correct === 2 },
+    ],
+    difficulty: getDifficulty(level),
+    coins: 20 + level,
+    xp: 35 + level,
+  };
+}
+
+const GAMES: GameType[] = [
+  "DOORS", "SURVIVAL", "ESCAPE", "MYSTERY", "HORROR", "TRAP", "BRIDGE", "TREASURE",
+  "ALIEN", "ZOMBIE", "MIND", "ANIMAL", "TIME", "MAGIC", "ISLAND", "ROBBERY", "LAB", "NIGHT", "BOSS", "CHAOS", "FASHION", "ROMANCE", "CAFE"
+];
+
+
+function CompetitionsScreen({
+  go,
+  coins,
+}: {
+  go: (s: Screen) => void;
+  coins: number;
+}) {
+  const challenges = [
+    {
+      id: "comp-1",
+      title: "Weekly Romance Showdown",
+      prize: "🪙 10,000 Coins ($100 USD)",
+      sponsor: "Funded by LevelPlay Ads 📺",
+      deadline: "Ends in 3 days",
+      description: "Create the most gripping romance episode with at least 3 cliffhangers. Top rated story wins the grand prize!",
+      joined: false,
+    },
+    {
+      id: "comp-2",
+      title: "Best Action Cliffhanger",
+      prize: "🪙 5,000 Coins ($50 USD)",
+      sponsor: "Funded by Ad Network 📺",
+      deadline: "Ends in 6 days",
+      description: "Keep viewers on the edge of their seats! Highest total plays & likes in the action genre wins.",
+      joined: true,
+    },
+    {
+      id: "comp-3",
+      title: "Fastest Rising Creator",
+      prize: "🪙 2,500 Coins ($25 USD)",
+      sponsor: "Funded by Sponsor Ads 📺",
+      deadline: "Ends in 12 hours",
+      description: "Gain the most new followers this week and claim the community champion bonus.",
+      joined: false,
+    },
+  ];
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <Header title="Creator Competitions" onBack={() => go("profile")} coins={coins} />
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.profileHero}>
+          <Text style={styles.profileName}>🏆 Creator Arena</Text>
+          <Text style={styles.muted}>Compete in challenges, win cash & coin prizes funded by our ad revenue!</Text>
+        </View>
+
+        <SectionTitle title="Active Challenges" />
+        {challenges.map((c) => (
+          <View key={c.id} style={{ backgroundColor: "#1c1c1e", borderRadius: 12, padding: 16, marginBottom: 16 }}>
+            <Text style={{ color: "#fff", fontSize: 18, fontWeight: "bold", marginBottom: 4 }}>{c.title}</Text>
+            <Text style={{ color: "#34C759", fontSize: 14, fontWeight: "600", marginBottom: 6 }}>Prize: {c.prize}</Text>
+            <Text style={{ color: "#8e8e93", fontSize: 12, marginBottom: 8 }}>{c.sponsor} • {c.deadline}</Text>
+            <Text style={{ color: "#aeaeb2", fontSize: 14, marginBottom: 14 }}>{c.description}</Text>
+            <Pressable
+              style={styles.primaryButton}
+              onPress={() => Alert.alert("Competition", c.joined ? "You are already participating in this challenge! Keep publishing." : "Successfully joined challenge! Publish your best story now.")}
+            >
+              <Text style={styles.primaryButtonText}>{c.joined ? "✓ Participating" : "Join Challenge"}</Text>
+            </Pressable>
+          </View>
+        ))}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
@@ -54,7 +610,7 @@ type Screen =
   | "home" | "trending" | "audio" | "video" | "library" | "profile"
   | "search" | "detail" | "comments" | "creator" | "coins" | "rewards"
   | "notifications" | "downloads" | "ai" | "settings" | "premium"
-  | "create" | "community" | "register";
+  | "create" | "community" | "register" | "competitions" | "scarydoors" | "procedural_games";
 
 type Story = {
   id: string;
@@ -436,7 +992,16 @@ function HomeScreen({
   go: (s: Screen) => void;
   coins: number;
 }) {
-  const featured = stories[0];
+  const [selectedGenre, setSelectedGenre] = React.useState("All");
+  const genres = ["All", "Popular", "Horror", "Drama", "Romance", "Sci-Fi", "Action"];
+
+  const filteredStories = React.useMemo(() => {
+    if (selectedGenre === "All") return stories;
+    if (selectedGenre === "Popular") return [...stories].sort((a, b) => b.plays - a.plays);
+    return stories.filter((s) => s.genre.toLowerCase() === selectedGenre.toLowerCase());
+  }, [stories, selectedGenre]);
+
+  const featured = filteredStories[0] || stories[0];
   return (
     <SafeAreaView style={styles.safe}>
       <Header
@@ -463,9 +1028,32 @@ function HomeScreen({
           </View>
         </View>
 
-        <SectionTitle title="For You" />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: 16, marginBottom: 12 }}>
+          {genres.map((g) => {
+            const active = selectedGenre === g;
+            return (
+              <Pressable
+                key={g}
+                onPress={() => setSelectedGenre(g)}
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: 20,
+                  backgroundColor: active ? "#e50914" : "#1f1f1f",
+                  marginRight: 8,
+                  borderWidth: 1,
+                  borderColor: active ? "#e50914" : "#333",
+                }}
+              >
+                <Text style={{ color: "#fff", fontWeight: active ? "700" : "500", fontSize: 13 }}>{g}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        <SectionTitle title={selectedGenre === "All" ? "For You" : `${selectedGenre} Stories`} />
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {stories.map((s) => (
+          {filteredStories.map((s) => (
             <StoryCard key={s.id} story={s} onPress={() => openStory(s)} />
           ))}
         </ScrollView>
@@ -1340,6 +1928,9 @@ function CreatorScreen({
               <Pressable style={styles.primaryButton} onPress={() => go("create")}>
                 <Text style={styles.primaryButtonText}>Creator studio</Text>
               </Pressable>
+              <Pressable style={styles.secondaryButton} onPress={() => go("competitions")}>
+                <Text style={styles.secondaryButtonText}>🏆 Creator Competitions</Text>
+              </Pressable>
             </>
           ) : (
             <Pressable style={styles.primaryButton} onPress={onToggleFollow}>
@@ -1354,6 +1945,7 @@ function CreatorScreen({
           <AnalyticsCard label="Likes" value={money(totalLikes)} />
           <AnalyticsCard label="Followers" value={money(profile.followersCount)} />
           <AnalyticsCard label="Videos" value={money(profile.videos.length)} />
+          <AnalyticsCard label="Earnings" value={`$${(totalPlays * 0.01).toFixed(2)}`} />
         </View>
 
         <SectionTitle title="Shared videos" />
@@ -1844,16 +2436,18 @@ const toggleLike = async (story: Story) => {
   likingInProgress.current[story.id] = true;
 
   const wasLiked = !!likedRef.current[story.id];
+  const nextLiked = !wasLiked;
+  const delta = nextLiked ? 1 : -1;
 
   // Optimistic UI update
-  setLiked((prev) => ({ ...prev, [story.id]: !wasLiked }));
-  likedRef.current = { ...likedRef.current, [story.id]: !wasLiked };
+  setLiked((prev) => ({ ...prev, [story.id]: nextLiked }));
+  likedRef.current = { ...likedRef.current, [story.id]: nextLiked };
 
   setStories((prev) =>
-    prev.map((s) => (s.id === story.id ? { ...s, likes: Math.max(0, s.likes + (wasLiked ? -1 : 1)) } : s))
+    prev.map((s) => (s.id === story.id ? { ...s, likes: Math.max(0, s.likes + delta) } : s))
   );
   setSelectedStory((s) =>
-    s?.id === story.id ? { ...s, likes: Math.max(0, s.likes + (wasLiked ? -1 : 1)) } : s
+    s?.id === story.id ? { ...s, likes: Math.max(0, s.likes + delta) } : s
   );
 
   try {
@@ -1878,10 +2472,10 @@ const toggleLike = async (story: Story) => {
     setLiked((prev) => ({ ...prev, [story.id]: wasLiked }));
     likedRef.current = { ...likedRef.current, [story.id]: wasLiked };
     setStories((prev) =>
-      prev.map((s) => (s.id === story.id ? { ...s, likes: Math.max(0, s.likes + (wasLiked ? 1 : -1)) } : s))
+      prev.map((s) => (s.id === story.id ? { ...s, likes: Math.max(0, s.likes + (wasLiked ? -1 : 1)) } : s))
     );
     setSelectedStory((s) =>
-      s?.id === story.id ? { ...s, likes: Math.max(0, s.likes + (wasLiked ? 1 : -1)) } : s
+      s?.id === story.id ? { ...s, likes: Math.max(0, s.likes + (wasLiked ? -1 : 1)) } : s
     );
     Alert.alert("Like failed", e.message);
   } finally {
@@ -1950,9 +2544,10 @@ async function likeComment(id: string) {
 
   commentLikingInProgress.current[id] = true;
   const wasLiked = !!commentLiked[id];
+  const nextLiked = !wasLiked;
 
-  setCommentLiked((prev) => ({ ...prev, [id]: !wasLiked }));
-  const delta = wasLiked ? -1 : 1;
+  setCommentLiked((prev) => ({ ...prev, [id]: nextLiked }));
+  const delta = nextLiked ? 1 : -1;
 
   setComments((prev) =>
     prev.map((c) => (c.id === id ? { ...c, likes: Math.max(0, c.likes + delta) } : c))
@@ -1975,7 +2570,7 @@ async function likeComment(id: string) {
   } catch (e: any) {
     setCommentLiked((prev) => ({ ...prev, [id]: wasLiked }));
     setComments((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, likes: Math.max(0, c.likes - delta) } : c))
+      prev.map((c) => (c.id === id ? { ...c, likes: Math.max(0, c.likes + (wasLiked ? 1 : -1)) } : c))
     );
     Alert.alert("Comment like failed", e.message || "Unable to like comment.");
   } finally {
@@ -2468,7 +3063,10 @@ async function likeComment(id: string) {
         />
       );
 
-    if (screen === "create")
+    if (screen === "competitions")
+      return <CompetitionsScreen go={navigate} coins={coins} />;
+
+        if (screen === "create")
       return (
         <CreateScreen
           title={newStoryTitle}
