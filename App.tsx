@@ -1,3 +1,6 @@
+const LEVELPLAY_APP_KEY = "c2a26252-65fe-40ad-a904-31378e98a611";
+const LEVELPLAY_REWARDED_AD_UNIT_ID = "DefaultRewardedAd";
+const LEVELPLAY_INTERSTITIAL_AD_UNIT_ID = "DefaultInterstitialAd";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
@@ -206,7 +209,7 @@ function normalizeShow(x: any): Story {
   const creator = typeof x?.creator === "string" ? x.creator : String(x?.creator?.username ?? x?.author?.username ?? x?.author ?? "Unknown Creator");
   const description = typeof x?.description === "string" ? x.description : String(x?.description ?? "");
 
-  return {
+    return {
     id: String(x?.id ?? x?._id ?? Date.now()),
     title,
     genre,
@@ -218,7 +221,10 @@ function normalizeShow(x: any): Story {
     likes: Number(x?.likes ?? 0),
     rating: Number(x?.rating ?? 0),
     episodes: Math.max(0, episodeCount),
-    lockedFrom: Number(x?.lockedFrom ?? 2),
+    lockedFrom: 
+      typeof x?.lockedFrom === "string" && x.lockedFrom.toLowerCase() === "free"
+        ? 999999 
+        : Number(x?.lockedFrom ?? x?.lockStatus ?? (x?.isLocked ? 1 : 2)),
     duration: Number(x?.duration ?? firstEpisode?.duration ?? 20),
     audioUrl: serverAudioUrl,
     videoUrl: serverVideoUrl,
@@ -1807,41 +1813,50 @@ export default function App() {
     return false;
   }
 
-  // FIXED LIKE TOGGLE: Prevents infinite stacking by correctly toggling state on and off
-  async function toggleLike(story: Story) {
-    if (!requireLogin("like videos")) return;
+ // Keep a ref to track what is currently syncing
+const likingInProgress = useRef<Record<string, boolean>>({});
 
-    const wasLiked = !!likedRef.current[story.id];
+async function toggleLike(story: Story) {
+  if (!requireLogin("like videos")) return;
+  if (likingInProgress.current[story.id]) return; // Prevent spam tapping
 
-    setLiked((prev) => ({ ...prev, [story.id]: !wasLiked }));
-    likedRef.current = { ...likedRef.current, [story.id]: !wasLiked };
+  likingInProgress.current[story.id] = true;
+  const wasLiked = !!likedRef.current[story.id];
 
-    const delta = wasLiked ? -1 : 1;
-    setStories((prev) =>
-      prev.map((s) => (s.id === story.id ? { ...s, likes: Math.max(0, s.likes + delta) } : s))
+  // Optimistic UI update
+  setLiked((prev) => ({ ...prev, [story.id]: !wasLiked }));
+  likedRef.current = { ...likedRef.current, [story.id]: !wasLiked };
+
+  const delta = wasLiked ? -1 : 1;
+  setStories((prev) =>
+    prev.map((s) => (s.id === story.id ? { ...s, likes: Math.max(0, s.likes + delta) } : s))
+  );
+  setSelectedStory((s) => (s.id === story.id ? { ...s, likes: Math.max(0, s.likes + delta) } : s));
+
+  try {
+    const result = await api<any>(
+      `/api/shows/${encodeURIComponent(story.id)}/like`,
+      { method: "POST" },
+      token
     );
-    setSelectedStory((s) => (s.id === story.id ? { ...s, likes: Math.max(0, s.likes + delta) } : s));
-
-    try {
-      const result = await api<any>(
-        `/api/shows/${encodeURIComponent(story.id)}/like`,
-        { method: "POST" },
-        token
-      );
-      if (typeof result.likes === "number") {
-        setStories((prev) => prev.map((s) => s.id === story.id ? { ...s, likes: result.likes } : s));
-        setSelectedStory((s) => (s.id === story.id ? { ...s, likes: result.likes } : s));
-      }
-    } catch (e: any) {
-      setLiked((prev) => ({ ...prev, [story.id]: wasLiked }));
-      likedRef.current = { ...likedRef.current, [story.id]: wasLiked };
-      setStories((prev) =>
-        prev.map((s) => (s.id === story.id ? { ...s, likes: Math.max(0, s.likes - delta) } : s))
-      );
-      setSelectedStory((s) => (s.id === story.id ? { ...s, likes: Math.max(0, s.likes - delta) } : s));
-      Alert.alert("Like failed", e.message);
+    if (typeof result.likes === "number") {
+      setStories((prev) => prev.map((s) => s.id === story.id ? { ...s, likes: result.likes } : s));
+      setSelectedStory((s) => s.id === story.id ? { ...s, likes: result.likes } : s));
     }
+  } catch (e: any) {
+    // Rollback on failure
+    setLiked((prev) => ({ ...prev, [story.id]: wasLiked }));
+    likedRef.current = { ...likedRef.current, [story.id]: wasLiked };
+    setStories((prev) =>
+      prev.map((s) => (s.id === story.id ? { ...s, likes: Math.max(0, s.likes - delta) } : s))
+    );
+    setSelectedStory((s) => (s.id === story.id ? { ...s, likes: Math.max(0, s.likes - delta) } : s));
+    Alert.alert("Like failed", e.message);
+  } finally {
+    likingInProgress.current[story.id] = false; // Release the lock
   }
+}
+
 
   function toggleSave(id: string) {
     setSaved((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -1861,59 +1876,73 @@ export default function App() {
   }
 
   async function postComment() {
-    if (!requireLogin("comment")) return;
-    const text = commentText.trim();
-    if (!text) return;
+  if (!requireLogin("comment")) return;
+  const text = commentText.trim();
+  if (!text) return;
 
-    const local: CommentItem = {
-      id: `local-${Date.now()}`,
-      user: user!.username,
-      text,
-      likes: 0,
-    };
+  const local: CommentItem = {
+    id: `local-${Date.now()}`,
+    user: user!.username,
+    text,
+    likes: 0,
+  };
 
-    setComments((prev) => [local, ...prev]);
-    setCommentText("");
+  setComments((prev) => [local, ...prev]);
+  setCommentText("");
 
-    try {
-      const result = await api<any>(
-        `/api/shows/${encodeURIComponent(selectedStory.id)}/comments`,
-        { method: "POST", body: JSON.stringify({ text }) },
-        token
-      );
-      if (result?.comment) {
-        setComments((prev) => prev.filter((x) => x.id !== local.id));
-        setComments((prev) => [
-          { id: String(result.comment.id), user: String(result.comment.username ?? user!.username), text: String(result.comment.text ?? text), likes: Number(result.comment.likes ?? 0) },
-          ...prev,
-        ]);
-      }
-    } catch (e: any) {
+  try {
+    const result = await api<any>(
+      `/api/shows/${encodeURIComponent(selectedStory.id)}/comments`,
+      { method: "POST", body: JSON.stringify({ text }) },
+      token
+    );
+    if (result?.comment) {
       setComments((prev) => prev.filter((x) => x.id !== local.id));
-      Alert.alert("Comment failed", e.message);
+      setComments((prev) => [
+        { id: String(result.comment.id), user: String(result.comment.username ?? user!.username), text: String(result.comment.text ?? text), likes: Number(result.comment.likes ?? 0) },
+        ...prev,
+      ]);
     }
+  } catch (e: any) {
+    setComments((prev) => prev.filter((x) => x.id !== local.id));
+    Alert.alert("Comment failed", e.message);
   }
+}
 
-  // FIXED COMMENT LIKE TOGGLE: Toggles comment heart state properly on/off
-  async function likeComment(id: string) {
-    if (!requireLogin("like comments")) return;
-    const wasLiked = !!commentLiked[id];
+// Keep a ref to prevent spam-tapping comment likes
+const commentLikingInProgress = useRef<Record<string, boolean>>({});
 
-    setCommentLiked((prev) => ({ ...prev, [id]: !wasLiked }));
-    const delta = wasLiked ? -1 : 1;
-    setComments((prev) => prev.map((c) => c.id === id ? { ...c, likes: Math.max(0, c.likes + delta) } : c));
+async function likeComment(id: string) {
+  if (!requireLogin("like comments")) return;
+  if (commentLikingInProgress.current[id]) return;
 
-    try {
-      const result = await api<any>(`/api/comments/${encodeURIComponent(id)}/like`, { method: "POST" }, token);
-      if (typeof result.likes === "number") {
-        setComments((prev) => prev.map((c) => c.id === id ? { ...c, likes: result.likes } : c));
-      }
-    } catch (e: any) {
-      setCommentLiked((prev) => ({ ...prev, [id]: wasLiked }));
-      setComments((prev) => prev.map((c) => c.id === id ? { ...c, likes: Math.max(0, c.likes - delta) } : c));
-      Alert.alert("Comment like failed", e.message);
+  commentLikingInProgress.current[id] = true;
+  const wasLiked = !!commentLiked[id];
+
+  setCommentLiked((prev) => ({ ...prev, [id]: !wasLiked }));
+  const delta = wasLiked ? -1 : 1;
+
+  setComments((prev) =>
+    prev.map((c) => (c.id === id ? { ...c, likes: Math.max(0, c.likes + delta) } : c))
+  );
+
+  try {
+    const result = await api<any>(`/api/comments/${encodeURIComponent(id)}/like`, { method: "POST" }, token);
+    if (typeof result.likes === "number") {
+      setComments((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, likes: result.likes } : c))
+      );
     }
+  } catch (e: any) {
+    setCommentLiked((prev) => ({ ...prev, [id]: wasLiked }));
+    setComments((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, likes: Math.max(0, c.likes - delta) } : c))
+    );
+    Alert.alert("Comment like failed", e.message || "Unable to like comment.");
+  } finally {
+    commentLikingInProgress.current[id] = false;
   }
+}
 
   // FIXED PROFILE PICTURE BUTTON & UPLOADER
   async function uploadProfileAvatar() {
@@ -1927,8 +1956,7 @@ export default function App() {
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
-        allowsEditing: true,
-        aspect: [1, 1],
+        allowsEditing: false,
         quality: 0.9,
       });
       if (result.canceled || !result.assets?.[0]?.uri) return;
