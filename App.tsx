@@ -40,31 +40,31 @@ import {
 
 const API_URL =
   process.env.EXPO_PUBLIC_API_URL?.trim() ||
-  "http://16.170.245.45:3000";[span_3](start_span)[span_3](end_span)
+  "http://16.170.245.45:3000";
 
-const AI_MODEL = "gemini-3.7-flash";[span_4](start_span)[span_4](end_span)
+const AI_MODEL = "gemini-3.7-flash";
 
 const LEVELPLAY_APP_KEY =
   process.env.EXPO_PUBLIC_LEVELPLAY_APP_KEY?.trim() ||
-  "PUT_YOUR_UNITY_LEVELPLAY_APP_KEY_HERE";[span_5](start_span)[span_5](end_span)
+  "PUT_YOUR_UNITY_LEVELPLAY_APP_KEY_HERE";
 const LEVELPLAY_REWARDED_AD_UNIT_ID =
   process.env.EXPO_PUBLIC_LEVELPLAY_REWARDED_AD_UNIT_ID?.trim() ||
-  "PUT_YOUR_REWARDED_AD_UNIT_ID_HERE";[span_6](start_span)[span_6](end_span)
+  "PUT_YOUR_REWARDED_AD_UNIT_ID_HERE";
 const LEVELPLAY_INTERSTITIAL_AD_UNIT_ID =
   process.env.EXPO_PUBLIC_LEVELPLAY_INTERSTITIAL_AD_UNIT_ID?.trim() ||
-  "PUT_YOUR_INTERSTITIAL_AD_UNIT_ID_HERE";[span_7](start_span)[span_7](end_span)
+  "PUT_YOUR_INTERSTITIAL_AD_UNIT_ID_HERE";
 const LEVELPLAY_REWARDED_PLACEMENT =
   process.env.EXPO_PUBLIC_LEVELPLAY_REWARDED_PLACEMENT?.trim() ||
-  "PocketRivalsReward";[span_8](start_span)[span_8](end_span)
+  "PocketRivalsReward";
 const LEVELPLAY_INTERSTITIAL_PLACEMENT =
   process.env.EXPO_PUBLIC_LEVELPLAY_INTERSTITIAL_PLACEMENT?.trim() ||
-  "PocketRivalsBetweenEpisodes";[span_9](start_span)[span_9](end_span)
+  "PocketRivalsBetweenEpisodes";
 
 type Screen =
   | "home" | "trending" | "audio" | "video" | "library" | "profile"
   | "search" | "detail" | "comments" | "creator" | "coins" | "rewards"
   | "notifications" | "downloads" | "ai" | "settings" | "premium"
-  | "create" | "community" | "register";[span_10](start_span)[span_10](end_span)
+  | "create" | "community" | "register";
 
 type Story = {
   id: string;
@@ -84,26 +84,26 @@ type Story = {
   videoUrl?: string;
   likedBy?: string[];
   raw?: any;
-};[span_11](start_span)[span_11](end_span)
+};
 
 type CommentItem = {
   id: string;
   user: string;
   text: string;
   likes: number;
-};[span_12](start_span)[span_12](end_span)
+};
 
 type AIMessage = {
   id: string;
   role: "user" | "assistant";
   text: string;
-};[span_13](start_span)[span_13](end_span)
+};
 
 type CoinPackage = {
   coins: number;
   amount: string;
   url: string;
-};[span_14](start_span)[span_14](end_span)
+};
 
 type User = {
   id?: string;
@@ -113,7 +113,7 @@ type User = {
   followersCount?: number;
   followingCount?: number;
   isAdmin?: boolean;
-};[span_15](start_span)[span_15](end_span)
+};
 
 type CreatorProfile = {
   id: string;
@@ -123,54 +123,54 @@ type CreatorProfile = {
   followersCount: number;
   followingCount: number;
   videos: Story[];
-};[span_16](start_span)[span_16](end_span)
+};
 
 const DEFAULT_PACKAGES: CoinPackage[] = [
   {
     coins: 3000,
     amount: "$24.99",
-    url: "https://www.paynow.co.zw/Payment/Link/?q=c2VhcmNoPXJ1ZGR5Y2hhbml3YTc3NyU0MGdtYWlsLmNvbSZhbW91bnQ9MjQuOTkmcmVmZXJlbmNlPSZsPTE%3d",[span_17](start_span)[span_17](end_span)
+    url: "https://www.paynow.co.zw/Payment/Link/?q=c2VhcmNoPXJ1ZGR5Y2hhbml3YTc3NyU0MGdtYWlsLmNvbSZhbW91bnQ9MjQuOTkmcmVmZXJlbmNlPSZsPTE%3d"
   },
   {
     coins: 1200,
     amount: "$9.99",
-    url: "https://www.paynow.co.zw/Payment/Link/?q=c2VhcmNoPXJ1ZGR5Y2hhbml3YTc3NyU0MGdtYWlsLmNvbSZhbW91bnQ9OS45OSZyZWZlcmVuY2U9Jmw9MQ%3d%3d",[span_18](start_span)[span_18](end_span)
+    url: "https://www.paynow.co.zw/Payment/Link/?q=c2VhcmNoPXJ1ZGR5Y2hhbml3YTc3NyU0MGdtYWlsLmNvbSZhbW91bnQ9OS45OSZyZWZlcmVuY2U9Jmw9MQ%3d%3d"
   },
   {
     coins: 550,
     amount: "$4.99",
-    url: "https://www.paynow.co.zw/Payment/Link/?q=c2VhcmNoPXJ1ZGR5Y2hhbml3YTc3NyU0MGdtYWlsLmNvbSZhbW91bnQ9NC45OSZyZWZlcmVuY2U9Jmw9MQ%3d%3d",[span_19](start_span)[span_19](end_span)
+    url: "https://www.paynow.co.zw/Payment/Link/?q=c2VhcmNoPXJ1ZGR5Y2hhbml3YTc3NyU0MGdtYWlsLmNvbSZhbW91bnQ9NC45OSZyZWZlcmVuY2U9Jmw9MQ%3d%3d"
   },
   {
     coins: 100,
     amount: "$0.99",
-    url: "https://www.paynow.co.zw/Payment/Link/?q=c2VhcmNoPXJ1ZGR5Y2hhbml3YTc3NyU0MGdtYWlsLmNvbSZhbW91bnQ9MC45OSZyZWZyZW5jZT0mbD0x%3d%3d",[span_20](start_span)[span_20](end_span)
+    url: "https://www.paynow.co.zw/Payment/Link/?q=c2VhcmNoPXJ1ZGR5Y2hhbml3YTc3NyU0MGdtYWlsLmNvbSZhbW91bnQ9MC45OSZyZWZyZW5jZT0mbD0x%3d%3d"
   },
-];[span_21](start_span)[span_21](end_span)
+];
 
 const money = (n: number) =>
   n >= 1_000_000
     ? `${(n / 1_000_000).toFixed(1)}M`
     : n >= 1_000
       ? `${(n / 1_000).toFixed(n % 1_000 ? 1 : 0)}K`
-      : String(n);[span_22](start_span)[span_22](end_span)
+      : String(n);
 
 function normalizeShow(x: any): Story {
   const firstEpisode =
     x?.seasons?.[0]?.episodes?.[0] ??
     x?.episodes?.[0] ??
-    null;[span_23](start_span)[span_23](end_span)
+    null;
 
   const serverVideoUrl =
     x?.videoUrl ??
     firstEpisode?.videoUrl ??
     firstEpisode?.url ??
-    undefined;[span_24](start_span)[span_24](end_span)
+    undefined;
 
   const serverAudioUrl =
     x?.audioUrl ??
     firstEpisode?.audioUrl ??
-    undefined;[span_25](start_span)[span_25](end_span)
+    undefined;
 
   const episodeCount =
     typeof x?.episodes === "number"
@@ -183,7 +183,7 @@ function normalizeShow(x: any): Story {
                 total + (Array.isArray(season?.episodes) ? season.episodes.length : 0),
               0
             )
-          : 1;[span_26](start_span)[span_26](end_span)
+          : 1;
 
   const image =
     typeof x?.thumbnail === "string" && x.thumbnail.trim()
@@ -198,13 +198,13 @@ function normalizeShow(x: any): Story {
               ? x.cover.trim()
               : typeof x?.image === "string" && x.image.trim()
                 ? x.image.trim()
-                : "";[span_27](start_span)[span_27](end_span)
+                : "";
 
-  const title = typeof x?.title === "string" ? x.title : String(x?.title ?? "Untitled");[span_28](start_span)[span_28](end_span)
-  const genre = typeof x?.genre === "string" ? x.genre : String(x?.genre ?? "Drama");[span_29](start_span)[span_29](end_span)
-  const author = typeof x?.author === "string" ? x.author : String(x?.author?.username ?? x?.creator?.username ?? x?.creator ?? "Unknown");[span_30](start_span)[span_30](end_span)
-  const creator = typeof x?.creator === "string" ? x.creator : String(x?.creator?.username ?? x?.author?.username ?? x?.author ?? "Unknown Creator");[span_31](start_span)[span_31](end_span)
-  const description = typeof x?.description === "string" ? x.description : String(x?.description ?? "");[span_32](start_span)[span_32](end_span)
+  const title = typeof x?.title === "string" ? x.title : String(x?.title ?? "Untitled");
+  const genre = typeof x?.genre === "string" ? x.genre : String(x?.genre ?? "Drama");
+  const author = typeof x?.author === "string" ? x.author : String(x?.author?.username ?? x?.creator?.username ?? x?.creator ?? "Unknown");
+  const creator = typeof x?.creator === "string" ? x.creator : String(x?.creator?.username ?? x?.author?.username ?? x?.author ?? "Unknown Creator");
+  const description = typeof x?.description === "string" ? x.description : String(x?.description ?? "");
 
   return {
     id: String(x?.id ?? x?._id ?? Date.now()),
@@ -224,7 +224,7 @@ function normalizeShow(x: any): Story {
     videoUrl: serverVideoUrl,
     likedBy: Array.isArray(x?.likedBy) ? x.likedBy.map(String) : [],
     raw: x,
-  };[span_33](start_span)[span_33](end_span)
+  };
 }
 
 async function api<T = any>(
@@ -237,12 +237,12 @@ async function api<T = any>(
     "Content-Type": "application/json",
     ...(options.headers as Record<string, string> | undefined),
   };
-  if (token) headers.Authorization = `Bearer ${token}`;[span_34](start_span)[span_34](end_span)
+  if (token) headers.Authorization = `Bearer ${token}`;
 
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
     headers,
-  });[span_35](start_span)[span_35](end_span)
+  });
 
   const text = await response.text();
   let data: any = {};
@@ -253,10 +253,10 @@ async function api<T = any>(
   }
 
   if (!response.ok) {
-    throw new Error(data?.error || data?.message || `Request failed (${response.status})`);[span_36](start_span)[span_36](end_span)
+    throw new Error(data?.error || data?.message || `Request failed (${response.status})`);
   }
 
-  return data as T;[span_37](start_span)[span_37](end_span)
+  return data as T;
 }
 
 function Header({
@@ -298,7 +298,7 @@ function Header({
         )}
       </View>
     </View>
-  );[span_38](start_span)[span_38](end_span)
+  );
 }
 
 function BottomNav({
@@ -313,7 +313,7 @@ function BottomNav({
     { key: "trending", icon: "↗", label: "Trending" },
     { key: "library", icon: "▣", label: "Library" },
     { key: "profile", icon: "●", label: "Profile" },
-  ];[span_39](start_span)[span_39](end_span)
+  ];
 
   return (
     <View style={styles.bottomNav}>
@@ -332,7 +332,7 @@ function BottomNav({
         </Pressable>
       ))}
     </View>
-  );[span_40](start_span)[span_40](end_span)
+  );
 }
 
 function SectionTitle({
@@ -351,7 +351,7 @@ function SectionTitle({
         </Pressable>
       )}
     </View>
-  );[span_41](start_span)[span_41](end_span)
+  );
 }
 
 function AnalyticsCard({ label, value }: { label: string; value: string }) {
@@ -360,7 +360,7 @@ function AnalyticsCard({ label, value }: { label: string; value: string }) {
       <Text style={styles.analyticsValue}>{value}</Text>
       <Text style={styles.analyticsLabel}>{label}</Text>
     </View>
-  );[span_42](start_span)[span_42](end_span)
+  );
 }
 
 function StoryCard({
@@ -384,7 +384,7 @@ function StoryCard({
         </Text>
       </View>
     </Pressable>
-  );[span_43](start_span)[span_43](end_span)
+  );
 }
 
 function StoryRow({
@@ -404,7 +404,7 @@ function StoryRow({
       </View>
       <Text style={styles.chevron}>›</Text>
     </Pressable>
-  );[span_44](start_span)[span_44](end_span)
+  );
 }
 
 function EmptyState({
@@ -427,7 +427,7 @@ function EmptyState({
         </Pressable>
       )}
     </View>
-  );[span_45](start_span)[span_45](end_span)
+  );
 }
 
 function HomeScreen({
@@ -491,7 +491,7 @@ function HomeScreen({
       </ScrollView>
       <BottomNav active="home" go={go} />
     </SafeAreaView>
-  );[span_46](start_span)[span_46](end_span)
+  );
 }
 
 function TrendingScreen({
@@ -522,7 +522,7 @@ function TrendingScreen({
       />
       <BottomNav active="trending" go={go} />
     </SafeAreaView>
-  );[span_47](start_span)[span_47](end_span)
+  );
 }
 
 function LibraryScreen({
@@ -563,7 +563,7 @@ function LibraryScreen({
       </ScrollView>
       <BottomNav active="library" go={go} />
     </SafeAreaView>
-  );[span_48](start_span)[span_48](end_span)
+  );
 }
 
 function ProfileScreen({
@@ -641,7 +641,7 @@ function ProfileScreen({
       </ScrollView>
       <BottomNav active="profile" go={go} />
     </SafeAreaView>
-  );[span_49](start_span)[span_49](end_span)
+  );
 }
 
 function SearchScreen({
@@ -698,7 +698,7 @@ function SearchScreen({
         ListEmptyComponent={<EmptyState title="No results" text="Try another search." />}
       />
     </SafeAreaView>
-  );[span_50](start_span)[span_50](end_span)
+  );
 }
 
 function DetailScreen({
@@ -787,7 +787,7 @@ function DetailScreen({
         </Pressable>
       </ScrollView>
     </SafeAreaView>
-  );[span_51](start_span)[span_51](end_span)
+  );
 }
 
 function VideoScreen({
@@ -856,7 +856,7 @@ function VideoScreen({
         </Pressable>
       </View>
     </SafeAreaView>
-  );[span_52](start_span)[span_52](end_span)
+  );
 }
 
 function AudioScreen({
@@ -913,7 +913,7 @@ function AudioScreen({
         </Pressable>
       </View>
     </SafeAreaView>
-  );[span_53](start_span)[span_53](end_span)
+  );
 }
 
 function CommentsScreen({
@@ -986,7 +986,7 @@ function CommentsScreen({
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
-  );[span_54](start_span)[span_54](end_span)
+  );
 }
 
 function CoinsScreen({
@@ -1032,7 +1032,7 @@ function CoinsScreen({
         </Pressable>
       </ScrollView>
     </SafeAreaView>
-  );[span_55](start_span)[span_55](end_span)
+  );
 }
 
 function RewardsScreen({
@@ -1081,7 +1081,7 @@ function RewardsScreen({
         </View>
       </ScrollView>
     </SafeAreaView>
-  );[span_56](start_span)[span_56](end_span)
+  );
 }
 
 function AIScreen({
@@ -1148,7 +1148,7 @@ function AIScreen({
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
-  );[span_57](start_span)[span_57](end_span)
+  );
 }
 
 function RegisterScreen({
@@ -1255,7 +1255,7 @@ function RegisterScreen({
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
-  );[span_58](start_span)[span_58](end_span)
+  );
 }
 
 function CreatorScreen({
@@ -1338,7 +1338,7 @@ function CreatorScreen({
         )}
       </ScrollView>
     </SafeAreaView>
-  );[span_59](start_span)[span_59](end_span)
+  );
 }
 
 function CreateScreen({
@@ -1401,7 +1401,7 @@ function CreateScreen({
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
-  );[span_60](start_span)[span_60](end_span)
+  );
 }
 
 function SettingsScreen({
@@ -1448,7 +1448,7 @@ function SettingsScreen({
         </Pressable>
       </ScrollView>
     </SafeAreaView>
-  );[span_61](start_span)[span_61](end_span)
+  );
 }
 
 function PremiumScreen({ onBack }: { onBack: () => void }) {
@@ -1469,7 +1469,7 @@ function PremiumScreen({ onBack }: { onBack: () => void }) {
         </View>
       </View>
     </SafeAreaView>
-  );[span_62](start_span)[span_62](end_span)
+  );
 }
 
 function CommunityScreen({ go, stories }: { go: (s: Screen) => void; stories: Story[] }) {
@@ -1492,7 +1492,7 @@ function CommunityScreen({ go, stories }: { go: (s: Screen) => void; stories: St
         ))}
       </ScrollView>
     </SafeAreaView>
-  );[span_63](start_span)[span_63](end_span)
+  );
 }
 
 function DownloadsScreen({
@@ -1521,7 +1521,7 @@ function DownloadsScreen({
         <EmptyState title="No downloads" text="Downloads are kept as local app state for this testing build." />
       )}
     </SafeAreaView>
-  );[span_64](start_span)[span_64](end_span)
+  );
 }
 
 function NotificationsScreen({ onBack }: { onBack: () => void }) {
@@ -1530,7 +1530,7 @@ function NotificationsScreen({ onBack }: { onBack: () => void }) {
       <Header title="Notifications" onBack={onBack} coins={0} />
       <EmptyState title="You're all caught up" text="Creator and story notifications will appear here." />
     </SafeAreaView>
-  );[span_65](start_span)[span_65](end_span)
+  );
 }
 
 export default function App() {
