@@ -865,7 +865,6 @@ function AudioScreen({
   const player = useAudioPlayer(source, {
     updateInterval: 500,
     downloadFirst: false,
-    preferredForwardBufferDuration: 15,
   });
   const status = useAudioPlayerStatus(player);
 
@@ -1805,22 +1804,23 @@ export default function App() {
  // Keep a ref to track what is currently syncing
 const likingInProgress = useRef<Record<string, boolean>>({});
 
-async function toggleLike(story: Story) {
-  if (!requireLogin("like videos")) return;
-  if (likingInProgress.current[story.id]) return; // Prevent spam tapping
-
+const toggleLike = async (story: Story) => {
+  if (!requireLogin("like stories")) return;
+  if (likingInProgress.current[story.id]) return; // Race-condition guard
   likingInProgress.current[story.id] = true;
+
   const wasLiked = !!likedRef.current[story.id];
 
   // Optimistic UI update
   setLiked((prev) => ({ ...prev, [story.id]: !wasLiked }));
   likedRef.current = { ...likedRef.current, [story.id]: !wasLiked };
 
-  const delta = wasLiked ? -1 : 1;
   setStories((prev) =>
-    prev.map((s) => (s.id === story.id ? { ...s, likes: Math.max(0, s.likes + delta) } : s))
+    prev.map((s) => (s.id === story.id ? { ...s, likes: Math.max(0, s.likes + (wasLiked ? -1 : 1)) } : s))
   );
-  setSelectedStory((s) => (s.id === story.id ? { ...s, likes: Math.max(0, s.likes + delta) } : s));
+  setSelectedStory((s) =>
+    s?.id === story.id ? { ...s, likes: Math.max(0, s.likes + (wasLiked ? -1 : 1)) } : s
+  );
 
   try {
     const result = await api<any>(
@@ -1829,22 +1829,28 @@ async function toggleLike(story: Story) {
       token
     );
     if (typeof result.likes === "number") {
-      setStories((prev) => prev.map((s) => s.id === story.id ? { ...s, likes: result.likes } : s));
-      setSelectedStory((s) => s.id === story.id ? { ...s, likes: result.likes } : s));
+      setStories((prev) =>
+        prev.map((s) => (s.id === story.id ? { ...s, likes: result.likes } : s))
+      );
+      setSelectedStory((s) =>
+        s?.id === story.id ? { ...s, likes: result.likes } : s
+      );
     }
   } catch (e: any) {
     // Rollback on failure
     setLiked((prev) => ({ ...prev, [story.id]: wasLiked }));
     likedRef.current = { ...likedRef.current, [story.id]: wasLiked };
     setStories((prev) =>
-      prev.map((s) => (s.id === story.id ? { ...s, likes: Math.max(0, s.likes - delta) } : s))
+      prev.map((s) => (s.id === story.id ? { ...s, likes: Math.max(0, s.likes + (wasLiked ? 1 : -1)) } : s))
     );
-    setSelectedStory((s) => (s.id === story.id ? { ...s, likes: Math.max(0, s.likes - delta) } : s));
+    setSelectedStory((s) =>
+      s?.id === story.id ? { ...s, likes: Math.max(0, s.likes + (wasLiked ? 1 : -1)) } : s
+    );
     Alert.alert("Like failed", e.message);
   } finally {
-    likingInProgress.current[story.id] = false; // Release the lock
+    likingInProgress.current[story.id] = false;
   }
-}
+};
 
 
   function toggleSave(id: string) {
