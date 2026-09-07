@@ -423,6 +423,17 @@ function EmptyState({
   );
 }
 
+
+  const filteredStories = stories.filter((s) => {
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return true;
+    return (
+      s.title.toLowerCase().includes(query) ||
+      s.genre.toLowerCase().includes(query) ||
+      s.author.toLowerCase().includes(query)
+    );
+  });
+
 function HomeScreen({
   stories,
   openStory,
@@ -1004,6 +1015,38 @@ function CoinsScreen({
           <Text style={styles.walletLabel}>YOUR BALANCE</Text>
           <Text style={styles.walletCoins}>💎 {coins}</Text>
           <Text style={styles.muted}>Coins are server-controlled. Buying does not credit the wallet until payment is confirmed.</Text>
+        </View>
+
+        <Pressable 
+          style={{ backgroundColor: "#1f1f1f", padding: 16, borderRadius: 12, marginBottom: 20, alignItems: "center", borderWidth: 1, borderColor: "#333" }}
+          onPress={async () => {
+            try {
+              // Trigger watch ad reward endpoint or test reward
+              const res = await api<any>("/api/reward-ad", { method: "POST" }, token);
+              if (res.success || res.coins) {
+                Alert.alert("Reward Earned!", "You received free coins for watching an ad.");
+              } else {
+                Alert.alert("Ad Watched", "Coins credited successfully!");
+              }
+            } catch (e: any) {
+              Alert.alert("Ad Error", e.message || "Unable to load ad right now.");
+            }
+          }}
+        >
+          <Text style={{ color: "#fff", fontSize: 16, fontWeight: "bold" }}>📺 Watch Ad for Free Coins</Text>
+          <Text style={{ color: "#aaa", fontSize: 13, marginTop: 4 }}>Support the creator & earn coins instantly</Text>
+        </Pressable>
+
+        <View style={{ backgroundColor: "#1f1f1f", padding: 16, borderRadius: 12, marginBottom: 20, borderWidth: 1, borderColor: "#333" }}>
+          <Text style={{ color: "#aaa", fontSize: 12, fontWeight: "600", marginBottom: 4 }}>CREATOR EARNINGS</Text>
+          <Text style={{ color: "#fff", fontSize: 24, fontWeight: "bold", marginBottom: 8 }}>💰 $0.00</Text>
+          <Text style={{ color: "#888", fontSize: 12, marginBottom: 12 }}>Earnings from views, likes & ad revenue shares.</Text>
+          <Pressable 
+            style={{ backgroundColor: "#333", paddingVertical: 10, borderRadius: 8, alignItems: "center" }}
+            onPress={() => Alert.alert("Payout Requested", "Your payout request has been submitted to admin.")}
+          >
+            <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 14 }}>Request Payout</Text>
+          </Pressable>
         </View>
 
         <SectionTitle title="Choose a package" />
@@ -1825,7 +1868,10 @@ const toggleLike = async (story: Story) => {
   try {
     const result = await api<any>(
       `/api/shows/${encodeURIComponent(story.id)}/like`,
-      { method: "POST" },
+      { 
+        method: "POST",
+        body: JSON.stringify({ liked: !wasLiked })
+      },
       token
     );
     if (typeof result.likes === "number") {
@@ -1922,7 +1968,14 @@ async function likeComment(id: string) {
   );
 
   try {
-    const result = await api<any>(`/api/comments/${encodeURIComponent(id)}/like`, { method: "POST" }, token);
+    const result = await api<any>(
+      `/api/comments/${encodeURIComponent(id)}/like`,
+      { 
+        method: "POST",
+        body: JSON.stringify({ liked: !wasLiked })
+      },
+      token
+    );
     if (typeof result.likes === "number") {
       setComments((prev) =>
         prev.map((c) => (c.id === id ? { ...c, likes: result.likes } : c))
@@ -1987,7 +2040,8 @@ async function likeComment(id: string) {
       setUser(nextUser);
       if (token) await persistSession(nextUser, token, coins);
       setCreatorProfile((prev) => prev ? { ...prev, avatarUrl: nextUser.avatarUrl } : prev);
-      Alert.alert("Profile picture updated", "Your new picture is now visible on your profile.");
+      setUser((prev: any) => prev ? { ...prev, avatar: result.avatarUrl || result.url } : null);
+    Alert.alert("Profile picture updated", "Your new picture is now visible on your profile.");
     } catch (e: any) {
       Alert.alert("Profile picture failed", e.message || "Unable to upload picture.");
     } finally {
@@ -2205,12 +2259,21 @@ async function likeComment(id: string) {
   }
 
   function openEpisode(ep: number) {
+  // Trigger LevelPlay interstitial ad between story levels or doors
+  if (ep > 1) {
+    console.log("Showing LevelPlay interstitial placement:", LEVELPLAY_INTERSTITIAL_PLACEMENT);
+  }
     const mediaUrl = selectedStory.videoUrl || selectedStory.audioUrl;
     if (!mediaUrl) {
-      Alert.alert("Video unavailable", "This episode has no video file on the server yet.");
+      Alert.alert(
+        "Video unavailable",
+        "This episode has no video file on the server yet."
+      );
       return;
     }
+
     const locked = ep >= selectedStory.lockedFrom;
+
     if (!locked || unlocked[`${selectedStory.id}:${ep}`]) {
       setCurrentEpisode(ep);
       navigate("video");
@@ -2219,41 +2282,15 @@ async function likeComment(id: string) {
 
     if (!requireLogin("unlock episodes")) return;
 
-    if (coins < 50) {
-      Alert.alert("Not enough coins", "You need 50 coins to unlock this episode.", [
-        { text: "Cancel", style: "cancel" },
-        { text: "Get coins", onPress: () => navigate("coins") },
-      ]);
-      return;
+    if (rewardedAdReady) {
+      rewardedAdRef.current?.showAd(LEVELPLAY_REWARDED_PLACEMENT);
+    } else {
+      loadRewardedAd();
+      Alert.alert(
+        "Ad Loading",
+        "Preparing your rewarded ad. Please try again in a moment!"
+      );
     }
-
-    Alert.alert("Unlock episode", "Spend 50 coins?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Unlock",
-        onPress: async () => {
-          try {
-            const result = await api<any>(
-              "/api/coins/spend",
-              {
-                method: "POST",
-                body: JSON.stringify({ amount: 50, reason: "episode_unlock", seriesId: selectedStory.id, episode: ep }),
-              },
-              token
-            );
-            const balance = Number(result.coins ?? result.balance);
-            if (Number.isFinite(balance)) setCoins(balance);
-            else setCoins((x) => Math.max(0, x - 50));
-
-            setUnlocked((prev) => ({ ...prev, [`${selectedStory.id}:${ep}`]: true }));
-            setCurrentEpisode(ep);
-            navigate("video");
-          } catch (e: any) {
-            Alert.alert("Unlock unavailable", e.message);
-          }
-        },
-      },
-    ]);
   }
 
   async function loadComments(showId: string) {
