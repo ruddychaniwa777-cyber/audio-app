@@ -424,15 +424,6 @@ function EmptyState({
 }
 
 
-  const filteredStories = stories.filter((s) => {
-    const query = searchQuery.toLowerCase().trim();
-    if (!query) return true;
-    return (
-      s.title.toLowerCase().includes(query) ||
-      s.genre.toLowerCase().includes(query) ||
-      s.author.toLowerCase().includes(query)
-    );
-  });
 
 function HomeScreen({
   stories,
@@ -1022,7 +1013,7 @@ function CoinsScreen({
           onPress={async () => {
             try {
               // Trigger watch ad reward endpoint or test reward
-              const res = await api<any>("/api/reward-ad", { method: "POST" }, token);
+              const res = await api<any>("/api/reward-ad", { method: "POST" }, null);
               if (res.success || res.coins) {
                 Alert.alert("Reward Earned!", "You received free coins for watching an ad.");
               } else {
@@ -2040,7 +2031,7 @@ async function likeComment(id: string) {
       setUser(nextUser);
       if (token) await persistSession(nextUser, token, coins);
       setCreatorProfile((prev) => prev ? { ...prev, avatarUrl: nextUser.avatarUrl } : prev);
-      setUser((prev: any) => prev ? { ...prev, avatar: result.avatarUrl || result.url } : null);
+      setUser((prev: any) => prev ? { ...prev, avatar: ((result as any).avatarUrl || (result as any).uri || (result as any).url) } : null);
     Alert.alert("Profile picture updated", "Your new picture is now visible on your profile.");
     } catch (e: any) {
       Alert.alert("Profile picture failed", e.message || "Unable to upload picture.");
