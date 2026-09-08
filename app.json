@@ -31,7 +31,9 @@
           }
         }
       ]
-    ]
+    ],
+    "ios": {
+      "bundleIdentifier": "com.ruddychaniwa777.pocketrivals"
+    }
   }
 }
-
